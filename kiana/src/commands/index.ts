@@ -33,6 +33,9 @@ import { importCommand } from './io/import';
 import { exportCommand } from './io/export';
 import { node } from './io/node';
 
+// net commands
+import { http } from './net/http';
+
 // kiana command
 import { kiana } from './kiana';
 
@@ -42,7 +45,7 @@ export const COMMANDS: Record<string, CommandDefinition> = {
     ls: { execute: ls },
     touch: { execute: touch },
     rm: { execute: rm },
-    write: { execute: write },
+    write: { execute: write, acceptsStdin: true },
 
     // directory commands
     pwd: { execute: pwd },
@@ -65,6 +68,9 @@ export const COMMANDS: Record<string, CommandDefinition> = {
     import: { execute: importCommand },
     export: { execute: exportCommand },
     node: { execute: node },
+
+    // net commands
+    http: { execute: http, acceptsStdin: true },
 
     // kiana command
     kiana: { execute: kiana },

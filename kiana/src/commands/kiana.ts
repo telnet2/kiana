@@ -4,7 +4,7 @@
 
 import { ArgumentParser } from 'argparse';
 import { CommandContext } from './types';
-import { runKiana, DEFAULT_SYSTEM_PROMPT } from '../KianaAgent';
+import { runKiana } from '../KianaAgent';
 import { MemTools } from '../MemTools';
 import { StdoutWriter } from '../Writer';
 

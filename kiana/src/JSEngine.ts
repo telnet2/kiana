@@ -59,6 +59,23 @@ export class JSEngine {
                 consoleBuffer.push(`WARN: ${args.map((a) => String(a)).join(' ')}`),
         };
 
+        let vm: NodeVM;
+        const moduleLoader = (modulePath: string) => {
+            if (this.moduleCache.has(modulePath)) {
+                return this.moduleCache.get(modulePath);
+            }
+            const node = this.fs.resolvePath(modulePath);
+            if (!node || !node.isFile()) {
+                throw new Error(`Cannot find module '${modulePath}'`);
+            }
+            const moduleCode = node.read();
+            const moduleDir = this.dirname(modulePath);
+            const wrappedModuleCode = this.wrapCodeWithCustomRequire(moduleCode, modulePath);
+            const moduleExports = vm.run(wrappedModuleCode, modulePath);
+            this.moduleCache.set(modulePath, moduleExports);
+            return moduleExports;
+        };
+
         const vmConfig: NodeVMOptions = {
             console: 'off',
             wrapper: 'commonjs',
@@ -67,10 +84,17 @@ export class JSEngine {
             sandbox: {
                 console: consoleProxy,
                 process: this.buildProcessProxy(argv, env),
+                __moduleLoader: moduleLoader,
             },
             require: {
                 external: false,
-                builtin: [],
+                builtin: ['path', 'buffer'],
+                mock: {
+                    fs: this.fsAdapter,
+                    'node:fs': this.fsAdapter,
+                    'fs/promises': this.fsAdapter.promises,
+                    'node:fs/promises': this.fsAdapter.promises,
+                },
             },
         };
 
@@ -78,14 +102,62 @@ export class JSEngine {
             vmConfig.timeout = vmOptions.timeout;
         }
 
-        const vm = new NodeVM(vmConfig);
-        const customRequire = this.createRequireForModule(vm, scriptDir, this.fsAdapter, this.moduleCache);
-        const moduleExports = vm.run(scriptNode.read(), scriptFullPath);
+        vm = new NodeVM(vmConfig);
+        
+        const wrappedCode = this.wrapCodeWithCustomRequire(scriptNode.read(), scriptFullPath);
+        const moduleExports = vm.run(wrappedCode, scriptFullPath);
 
         return {
             output: consoleBuffer.join('\n'),
             exports: moduleExports,
         };
+    }
+
+    private wrapCodeWithCustomRequire(code: string, filename: string): string {
+        const dirname = this.dirname(filename);
+        return `
+(function() {
+    const __originalRequire = require;
+    const __fs = __originalRequire('fs');
+    const __fsPromises = __originalRequire('fs/promises');
+    const __path = __originalRequire('path');
+    const __buffer = __originalRequire('buffer');
+    
+    const __createRequire = (fromDir) => {
+        return (moduleName) => {
+            if (moduleName === 'fs' || moduleName === 'node:fs') {
+                return __fs;
+            }
+            if (moduleName === 'fs/promises' || moduleName === 'node:fs/promises') {
+                return __fsPromises;
+            }
+            if (moduleName === 'path' || moduleName === 'node:path') {
+                return __path;
+            }
+            if (moduleName === 'buffer' || moduleName === 'node:buffer') {
+                return __buffer;
+            }
+            
+            let resolved;
+            if (moduleName.startsWith('/')) {
+                resolved = __path.normalize(moduleName);
+            } else if (moduleName.startsWith('./') || moduleName.startsWith('../')) {
+                resolved = __path.normalize(__path.join(fromDir, moduleName));
+            } else {
+                resolved = __path.normalize(__path.join('/', moduleName));
+            }
+            
+            return __moduleLoader(resolved);
+        };
+    };
+    
+    require = __createRequire('${dirname}');
+    
+    return (function() {
+${code}
+    })();
+})();
+`;
     }
 
     private buildProcessProxy(argv: readonly string[], env: SandboxEnv): NodeJS.Process {
@@ -105,47 +177,7 @@ export class JSEngine {
         return Object.freeze(proxy) as unknown as NodeJS.Process;
     }
 
-    private createRequireForModule(
-        vm: NodeVM,
-        dirname: string,
-        fsAdapter: MemFSAdapter,
-        moduleCache: Map<string, unknown>,
-    ): (moduleName: string) => unknown {
-        return (moduleName: string) => {
-            if (moduleName === 'fs' || moduleName === 'node:fs') {
-                return fsAdapter;
-            }
-            if (moduleName === 'fs/promises' || moduleName === 'node:fs/promises') {
-                return fsAdapter.promises;
-            }
-            if (moduleName === 'path' || moduleName === 'node:path') {
-                // eslint-disable-next-line @typescript-eslint/no-var-requires
-                return require('path');
-            }
-            if (moduleName === 'buffer' || moduleName === 'node:buffer') {
-                // eslint-disable-next-line @typescript-eslint/no-var-requires
-                return require('buffer');
-            }
 
-            const resolved = this.resolveToAbsolutePath(moduleName, dirname);
-            const node = this.fs.resolvePath(resolved);
-            if (!node || !node.isFile()) {
-                throw new Error(`Cannot find module '${moduleName}'`);
-            }
-
-            const modulePath = node.getPath();
-            if (moduleCache.has(modulePath)) {
-                return moduleCache.get(modulePath);
-            }
-
-            const moduleDir = this.dirname(modulePath);
-            const moduleRequire = this.createRequireForModule(vm, moduleDir, fsAdapter, moduleCache);
-            const moduleExports = vm.run(node.read(), modulePath);
-
-            moduleCache.set(modulePath, moduleExports);
-            return moduleExports;
-        };
-    }
 
     private buildArgv(
         scriptFullPath: string,

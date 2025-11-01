@@ -61,6 +61,7 @@ Available commands:
   import     - import file or directory from real filesystem
   export     - export file or directory to real filesystem
   node       - execute JavaScript file
+  http       - HTTPie-like command-line HTTP client
   kiana      - LLM agent with memshell access
 
 Use 'man <command>' to see detailed information about a command.`;
@@ -621,6 +622,111 @@ EXAMPLES
 SEE ALSO
        write, cat`,
 
+        http: `NAME
+       http - HTTPie-like command-line HTTP client
+
+SYNOPSIS
+       http [OPTION]... [METHOD] URL [REQUEST_ITEM]...
+
+DESCRIPTION
+       A user-friendly command-line HTTP client for making HTTP requests.
+       Supports JSON, form data, file uploads, and various output options.
+
+POSITIONAL ARGUMENTS
+       METHOD
+              HTTP method (GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS).
+              If omitted, defaults to GET or POST based on request data.
+       URL
+              Request URL. Supports localhost shorthand (e.g., :3000/path).
+              If scheme is omitted, uses --default-scheme (default: http).
+       REQUEST_ITEM
+              Request items in various formats (see REQUEST ITEMS below).
+
+OPTIONS
+       --json, -j
+              Serialize data items as JSON (default)
+       --form, -f
+              Serialize data items as form fields
+       --multipart
+              Force multipart/form-data request
+       --raw [DATA]
+              Send raw request body. If DATA starts with @, read from file.
+              If DATA is omitted, read from stdin.
+       --default-scheme {http,https}
+              Default URL scheme (default: http)
+       --output FILE, -o FILE
+              Save full output to FILE in MemFS
+       --download, -d
+              Download response body to file
+       --continue, -c
+              Resume interrupted download (use with --output)
+       --quiet, -q
+              Quiet mode (no output)
+       -h, --help
+              Display this help and exit
+
+REQUEST ITEMS
+       Header:
+              Header:value     Set request header
+
+       URL Parameters:
+              name==value      Add URL query parameter
+
+       JSON Data Fields (default mode):
+              field=value      String field
+              field:=value     Non-string JSON field (number, bool, etc.)
+              field:=@file     Read JSON from file in MemFS
+              field=@file      Read string from file in MemFS
+
+       Form Fields (--form mode):
+              field=value      Form field
+              field@file       Upload file from MemFS
+
+EXAMPLES
+       http GET http://httpbin.org/get
+              Simple GET request
+
+       http :3000/api/users
+              Shorthand for localhost:3000
+
+       http POST httpbin.org/post name=John age:=30
+              POST JSON data
+
+       http --form POST httpbin.org/post field=value
+              POST form data
+
+       http PUT api.example.com/users/1 name=Jane
+              PUT request with JSON
+
+       http GET httpbin.org/get X-API-Key:secret123
+              Add custom header
+
+       http POST httpbin.org/post q==search page==1
+              Add URL parameters
+
+       echo "raw data" | http POST httpbin.org/post
+              Send raw data via stdin
+
+       http --raw @data.json POST api.example.com/endpoint
+              Send raw data from file
+
+       http -d -o output.html GET example.com
+              Download and save response body
+
+       http --json POST api.example.com data=@input.txt
+              Send file content as JSON field
+
+FEATURES
+       - Automatic JSON/form content negotiation
+       - File upload support from MemFS
+       - Piped input support for request body
+       - Download and resume capabilities
+       - Custom headers and URL parameters
+       - Localhost shorthand notation
+
+SEE ALSO
+       curl, wget, echo, cat`,
+
         kiana: `NAME
        kiana - LLM agent with memshell access
 
@@ -661,7 +767,7 @@ EXAMPLES
 AVAILABLE COMMANDS
        The agent can use any MemShell command including:
        ls, cat, pwd, cd, mkdir, touch, rm, echo, date, grep,
-       find, sed, diff, patch, write, node, import, export
+       find, sed, diff, patch, write, node, import, export, http
 
 FEATURES
        - Command substitution: $(command)

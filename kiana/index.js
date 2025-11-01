@@ -6,7 +6,6 @@ const { JSEngine } = require('./lib/JSEngine');
 const { MemFSAdapter } = require('./lib/MemFSAdapter');
 
 module.exports = {
-    EventRouter,
     MemFS,
     MemFile,
     MemDirectory,
