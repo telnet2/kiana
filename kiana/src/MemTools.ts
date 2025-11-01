@@ -169,13 +169,13 @@ export class MemTools {
             type: "function",
             function: {
                 name: "memfs_exec",
-                description: "Execute shell commands in an in-memory file system. Supports all POSIX-like commands including ls, cat, grep, pipes, HEREDOC, and output redirection. State persists across calls.",
+                description: "Execute shell commands in an in-memory file system. Supports all POSIX-like commands including ls, cat, grep, find, jqn, wc, curl, node, pipes, HEREDOC, and output redirection. State persists across calls.",
                 parameters: {
                     type: "object",
                     properties: {
                         command: {
                             type: "string",
-                            description: "Shell command to execute. Can be multiline for HEREDOC (e.g., 'cat > file.txt << EOF\\nline 1\\nline 2\\nEOF'). Examples:\n- List files: 'ls -l'\n- Read file: 'cat file.txt'\n- Create file: 'echo Hello > hello.txt'\n- Search: 'grep error log.txt'\n- Pipe: 'cat file.txt | grep pattern'\n- HEREDOC: 'cat > config.yml << EOF\\nkey: value\\nEOF'\n- Execute JS: 'node script.js'"
+                            description: "Shell command to execute. Can be multiline for HEREDOC (e.g., 'cat > file.txt << EOF\\nline 1\\nline 2\\nEOF'). Examples:\n- List files: 'ls -l'\n- Read file: 'cat file.txt'\n- Create file: 'echo Hello > hello.txt'\n- Search: 'grep error log.txt' or 'find . -name \"*.txt\"'\n- Count: 'wc -l file.txt' or 'ls | wc -l'\n- JSON query: 'echo '{\"name\":\"John\"}' | jqn .name'\n- HTTP request: 'curl http://example.com' or 'curl -X POST -d \"data\" http://api.example.com'\n- Pipe: 'cat file.txt | grep pattern'\n- HEREDOC: 'cat > config.yml << EOF\\nkey: value\\nEOF'\n- Execute JS: 'node script.js'"
                         }
                     },
                     required: ["command"]
@@ -191,13 +191,13 @@ export class MemTools {
     getAnthropicToolDefinition(): AnthropicToolDefinition {
         return {
             name: "memfs_exec",
-            description: "Execute shell commands in an in-memory file system. Supports all POSIX-like commands including ls, cat, grep, pipes, HEREDOC, and output redirection. State persists across calls, allowing you to create files, directories, and execute JavaScript in the memory filesystem.",
+            description: "Execute shell commands in an in-memory file system. Supports all POSIX-like commands including ls, cat, grep, find, jqn, wc, curl, node, pipes, HEREDOC, and output redirection. State persists across calls, allowing you to create files, directories, query JSON, make HTTP requests, and execute JavaScript in the memory filesystem.",
             input_schema: {
                 type: "object",
                 properties: {
                     command: {
                         type: "string",
-                        description: "Shell command to execute. Can be multiline for HEREDOC (e.g., 'cat > file.txt << EOF\\nline 1\\nline 2\\nEOF'). Supports:\n- Navigation: ls, cd, pwd\n- File ops: cat, touch, rm, mkdir, write\n- Search: grep, find, sed\n- Pipes: cmd1 | cmd2\n- Redirection: echo text > file.txt\n- HEREDOC: cat > file << EOF\\ncontent\\nEOF\n- Execute: node script.js\n- Import/Export: import /real/path, export file /real/path"
+                        description: "Shell command to execute. Can be multiline for HEREDOC (e.g., 'cat > file.txt << EOF\\nline 1\\nline 2\\nEOF'). Supports:\n- Navigation: ls, cd, pwd\n- File ops: cat, touch, rm, mkdir, write\n- Search: grep, find, sed\n- Counting: wc (word, line, byte counts)\n- JSON: jqn (JSON queries with jq syntax)\n- Network: curl (HTTP requests with headers, data, auth)\n- Pipes: cmd1 | cmd2\n- Redirection: echo text > file.txt\n- HEREDOC: cat > file << EOF\\ncontent\\nEOF\n- Execute: node script.js\n- Import/Export: import /real/path, export file /real/path"
                     }
                 },
                 required: ["command"]
@@ -212,13 +212,13 @@ export class MemTools {
     getMCPToolDefinition(): MCPToolDefinition {
         return {
             name: "memfs_exec",
-            description: "Execute shell commands in an in-memory file system with full POSIX-like command support",
+            description: "Execute shell commands in an in-memory file system. Supports ls, cat, grep, find, jqn (JSON), wc (word count), curl (HTTP requests), node (JavaScript), pipes, HEREDOC, and output redirection.",
             inputSchema: {
                 type: "object",
                 properties: {
                     command: {
                         type: "string",
-                        description: "Shell command to execute (supports multiline for HEREDOC)"
+                        description: "Shell command to execute. Examples: 'ls -l', 'cat file.txt', 'wc -l file.txt', 'echo data | jqn .field', 'curl http://example.com', 'node script.js' (supports multiline for HEREDOC)"
                     }
                 },
                 required: ["command"]
@@ -233,13 +233,13 @@ export class MemTools {
     getToolDefinition(): ToolDefinition {
         return {
             name: "memfs_exec",
-            description: "Execute shell commands in an in-memory file system. Supports POSIX-like commands, pipes, HEREDOC, and output redirection. State persists across calls.",
+            description: "Execute shell commands in an in-memory file system. Supports ls, cat, grep, find, jqn, wc, curl, node, pipes, HEREDOC, and output redirection. State persists across calls.",
             parameters: {
                 type: "object",
                 properties: {
                     command: {
                         type: "string",
-                        description: "Shell command to execute. Can be multiline."
+                        description: "Shell command to execute. Can be multiline. Examples: 'ls -l', 'cat file.txt', 'wc -l', 'echo data | jqn .field', 'curl http://example.com', 'node script.js'"
                     }
                 },
                 required: ["command"]
@@ -275,11 +275,18 @@ export class MemTools {
     }
 
     /**
-     * Reset file system to empty state
+     * Reset file system to empty state and clear session history
      */
     reset(): void {
         this.fs = new MemFS();
         this.shell = new MemShell(this.fs);
+    }
+
+    /**
+     * Get session from shell
+     */
+    getSession() {
+        return this.shell.session;
     }
 
     /**

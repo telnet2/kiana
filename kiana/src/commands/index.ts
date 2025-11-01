@@ -22,6 +22,8 @@ import { grep } from './text/grep';
 import { sed } from './text/sed';
 import { diff } from './text/diff';
 import { patch } from './text/patch';
+import { jqn } from './text/jqn';
+import { wc } from './text/wc';
 
 // util commands
 import { date } from './util/date';
@@ -34,7 +36,7 @@ import { exportCommand } from './io/export';
 import { node } from './io/node';
 
 // net commands
-import { http } from './net/http';
+import { curl } from './io/curl';
 
 // kiana command
 import { kiana } from './kiana';
@@ -58,6 +60,8 @@ export const COMMANDS: Record<string, CommandDefinition> = {
     sed: { execute: sed, acceptsStdin: true },
     diff: { execute: diff },
     patch: { execute: patch, acceptsStdin: true },
+    jqn: { execute: jqn, acceptsStdin: true },
+    wc: { execute: wc, acceptsStdin: true },
 
     // util commands
     date: { execute: date },
@@ -70,7 +74,7 @@ export const COMMANDS: Record<string, CommandDefinition> = {
     node: { execute: node },
 
     // net commands
-    http: { execute: http, acceptsStdin: true },
+    curl: { execute: curl, acceptsStdin: true },
 
     // kiana command
     kiana: { execute: kiana },

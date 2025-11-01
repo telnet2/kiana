@@ -12,6 +12,7 @@ import { importCommand } from './commands/io/import';
 import { exportCommand } from './commands/io/export';
 import { node } from './commands/io/node';
 import { kiana } from './commands/kiana';
+import { MemSession } from './MemSession';
 
 /**
  * Parsed arguments result
@@ -36,11 +37,13 @@ export class MemShell {
     public fs: MemFS;
     public stdin: string | null;
     public jsEngine: JSEngine;
+    public session: MemSession;
 
-    constructor(memfs: MemFS | null = null) {
+    constructor(memfs: MemFS | null = null, session: MemSession | null = null) {
         this.fs = memfs || new MemFS();
         this.stdin = null;
         this.jsEngine = new JSEngine(this.fs);
+        this.session = session || new MemSession();
     }
 
     /**
@@ -274,6 +277,7 @@ export class MemShell {
         const context: CommandContext = {
             fs: this.fs,
             jsEngine: this.jsEngine,
+            session: this.session,
             stdin,
             parseArgsWithHelp: this.parseArgsWithHelp.bind(this),
             expandWildcards: this.expandWildcards.bind(this),
@@ -336,6 +340,7 @@ export class MemShell {
         const context: CommandContext = {
             fs: this.fs,
             jsEngine: this.jsEngine,
+            session: this.session,
             stdin: content,
             parseArgsWithHelp: this.parseArgsWithHelp.bind(this),
             expandWildcards: this.expandWildcards.bind(this),

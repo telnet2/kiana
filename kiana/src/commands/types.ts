@@ -4,6 +4,7 @@
 
 import { MemFS } from '../MemFS';
 import { JSEngine } from '../JSEngine';
+import { MemSession } from '../MemSession';
 import { ArgumentParser } from 'argparse';
 
 /**
@@ -14,6 +15,8 @@ export interface CommandContext {
     fs: MemFS;
     /** JavaScript execution engine */
     jsEngine: JSEngine;
+    /** Session for tracking state */
+    session: MemSession;
     /** Standard input (if piped) */
     stdin: string | null;
     /** Helper to parse args with help support */

@@ -199,3 +199,41 @@ export class MultiWriter implements Writer {
         }
     }
 }
+
+/**
+ * Spinner writer - stops a spinner on first write then delegates to wrapped writer
+ * Useful for showing activity indicator while waiting for async operation
+ */
+export class SpinnerWriter implements Writer {
+    private innerWriter: Writer;
+    private spinner: any; // Reference to Spinner instance
+    private spinnerStopped = false;
+
+    constructor(innerWriter: Writer, spinner: any) {
+        this.innerWriter = innerWriter;
+        this.spinner = spinner;
+    }
+
+    private stopSpinner(): void {
+        if (!this.spinnerStopped && this.spinner && this.spinner.isRunning) {
+            this.spinnerStopped = true;
+            this.spinner.stop();
+        }
+    }
+
+    write(chunk: string): void {
+        this.stopSpinner();
+        this.innerWriter.write(chunk);
+    }
+
+    writeLine(line: string): void {
+        this.stopSpinner();
+        this.innerWriter.writeLine(line);
+    }
+
+    flush(): void {
+        if (this.innerWriter.flush) {
+            this.innerWriter.flush();
+        }
+    }
+}

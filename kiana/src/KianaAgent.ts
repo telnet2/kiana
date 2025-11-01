@@ -22,8 +22,10 @@ You have access to the memfs_exec tool which executes shell commands in the in-m
 Available commands:
 - File operations: ls, cat, touch, rm, write
 - Directory operations: pwd, cd, mkdir
-- Text processing: echo, grep, sed, diff, patch, find
-- Utilities: date
+- Text processing: echo, grep, sed, diff, patch, find, jqn, wc
+- Utilities: date, man
+- JSON processing: jqn (JSON query with jq syntax)
+- Network: curl (transfer data using URLs)
 - I/O: import, export (between MemFS and real filesystem)
 - Execution: node (sandboxed JavaScript execution)
 
@@ -34,12 +36,20 @@ The filesystem supports:
 - Wildcards: *.txt, file?.js
 - Command substitution: $(command) - replaces with command output
 
+Useful patterns:
+- Count files: ls | wc -l
+- Query JSON: echo '{"name":"John"}' | jqn .name
+- Make HTTP requests: curl http://example.com or curl -X POST -d "data" http://api.example.com
+- Complex filtering: grep pattern file.txt | wc -l
+
 Best practices:
 1. Use 'ls' and 'cat' to verify your work
 2. Break complex tasks into steps
 3. Check command output before proceeding
 4. Use command substitution for dynamic values: echo "Today is $(date)"
-5. Provide a summary when complete
+5. Use pipes to chain operations efficiently
+6. Use 'man <command>' or '<command> --help' to see detailed command documentation
+7. Provide a summary when complete
 
 When you finish the task, provide a clear summary of what you accomplished.`;
 

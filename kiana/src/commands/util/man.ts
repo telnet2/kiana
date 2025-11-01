@@ -57,11 +57,13 @@ Available commands:
   find       - search for files in directory hierarchy
   sed        - stream editor for filtering and transforming text
   patch      - apply a diff file to an original
+  jqn        - process JSON with jq syntax
+  wc         - count lines, words, and characters
   write      - write text to a file
   import     - import file or directory from real filesystem
   export     - export file or directory to real filesystem
   node       - execute JavaScript file
-  http       - HTTPie-like command-line HTTP client
+  curl       - command-line tool for transferring data using URLs
   kiana      - LLM agent with memshell access
 
 Use 'man <command>' to see detailed information about a command.`;
@@ -524,6 +526,154 @@ EXAMPLES
 SEE ALSO
        diff, merge`,
 
+        jqn: `NAME
+       jqn - process JSON with jq syntax
+
+SYNOPSIS
+       jqn [OPTION]... [FILTER] [FILE]
+
+DESCRIPTION
+       Process JSON data using jq filter expressions. Supports reading
+       from files or stdin, and provides various output formatting options.
+
+POSITIONAL ARGUMENTS
+       FILTER
+              jq filter expression (default: "." for pretty-print)
+              Examples: ".name", ".items[]", ".[] | select(.age > 18)"
+       FILE
+              JSON file to process (uses stdin if not provided)
+
+OPTIONS
+       -c, --compact
+              Compact output (no pretty-printing)
+       -r, --raw-output
+              Output raw strings, not JSON texts
+       -s, --slurp
+              Read entire input stream into array
+       -n, --null-input
+              Use null as input value (no input required)
+       -h, --help
+              Display this help and exit
+
+JQ FILTER BASICS
+       .              Identity (return input unchanged)
+       .foo           Get field "foo"
+       .foo.bar       Nested field access
+       .[]            Array/object iterator
+       .[0]           Array index
+       .foo, .bar     Multiple outputs
+       | pipe         Pipe output to next filter
+       select(expr)   Filter based on condition
+       map(expr)      Apply expression to each element
+       length         Get length of array/string/object
+       keys           Get object keys
+       values         Get object values
+       sort           Sort array
+       unique         Get unique elements
+       group_by(expr) Group by expression
+
+EXAMPLES
+       echo '{"name":"John","age":30}' | jqn
+              Pretty-print JSON
+
+       echo '{"name":"John","age":30}' | jqn .name
+              Output: "John"
+
+       echo '{"name":"John","age":30}' | jqn -r .name
+              Output: John (raw string, no quotes)
+
+       echo '{"items":[1,2,3]}' | jqn '.items[]'
+              Output each array element on separate line
+
+       echo '{"items":[1,2,3]}' | jqn -c '.items | map(. * 2)'
+              Output: [2,4,6]
+
+       jqn '.users[] | select(.age > 18)' users.json
+              Filter users older than 18 from file
+
+       echo '{"a":1}' '{"b":2}' | jqn -s .
+              Slurp: [{"a":1},{"b":2}]
+
+       jqn << EOF
+       {
+         "name": "Alice",
+         "email": "alice@example.com"
+       }
+       EOF
+              Process JSON from HEREDOC
+
+       jqn -n '{name: "test", value: 123}'
+              Create JSON without input
+
+FEATURES
+       - Full jq syntax support
+       - Stdin and file input
+       - HEREDOC support
+       - Multiple output formats
+       - Array and object manipulation
+       - Filtering and transformation
+
+SEE ALSO
+       grep, sed, cat
+       Full jq documentation: https://stedolan.github.io/jq/`,
+
+        wc: `NAME
+       wc - print newline, word, and byte counts for files
+
+SYNOPSIS
+       wc [OPTION]... [FILE]...
+
+DESCRIPTION
+       Print newline, word, and byte counts for each FILE. With no FILE,
+       read standard input. A word is a sequence of non-whitespace characters.
+
+OPTIONS
+       -c, --bytes
+              Print the byte counts
+       -m, --chars
+              Print the character counts
+       -l, --lines
+              Print the line counts
+       -w, --words
+              Print the word counts
+       -L, --max-line-length
+              Print the maximum display width
+       -h, --help
+              Display this help and exit
+
+OUTPUT FORMAT
+       By default, the line count, word count, and byte count are printed
+       for each file, followed by the filename (or nothing for stdin).
+       If multiple files are given, a "total" line is printed.
+
+EXAMPLES
+       wc file.txt
+              Print line, word, and byte counts
+
+       wc -l file.txt
+              Print line count only
+
+       wc -w file.txt
+              Print word count only
+
+       wc -c file.txt
+              Print byte count only
+
+       wc -l *.txt
+              Count lines in all .txt files
+
+       cat file.txt | wc
+              Count from stdin
+
+       wc -L file.txt
+              Print longest line length
+
+       ls | wc -l
+              Count files in directory (one per line)
+
+SEE ALSO
+       cat, grep, sed`,
+
         write: `NAME
        write - write text to a file
 
@@ -622,110 +772,94 @@ EXAMPLES
 SEE ALSO
        write, cat`,
 
-        http: `NAME
-       http - HTTPie-like command-line HTTP client
+        curl: `NAME
+       curl - command-line tool for transferring data using URLs
 
 SYNOPSIS
-       http [OPTION]... [METHOD] URL [REQUEST_ITEM]...
+       curl [OPTION]... [URL]
 
 DESCRIPTION
-       A user-friendly command-line HTTP client for making HTTP requests.
-       Supports JSON, form data, file uploads, and various output options.
-
-POSITIONAL ARGUMENTS
-       METHOD
-              HTTP method (GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS).
-              If omitted, defaults to GET or POST based on request data.
-       URL
-              Request URL. Supports localhost shorthand (e.g., :3000/path).
-              If scheme is omitted, uses --default-scheme (default: http).
-       REQUEST_ITEM
-              Request items in various formats (see REQUEST ITEMS below).
+       Transfer data from or to a server using URLs. Supports HTTP, HTTPS,
+       FTP, and many other protocols. curl is a command-line wrapper around
+       the system curl binary.
 
 OPTIONS
-       --json, -j
-              Serialize data items as JSON (default)
-       --form, -f
-              Serialize data items as form fields
-       --multipart
-              Force multipart/form-data request
-       --raw [DATA]
-              Send raw request body. If DATA starts with @, read from file.
-              If DATA is omitted, read from stdin.
-       --default-scheme {http,https}
-              Default URL scheme (default: http)
-       --output FILE, -o FILE
-              Save full output to FILE in MemFS
-       --download, -d
-              Download response body to file
-       --continue, -c
-              Resume interrupted download (use with --output)
-       --quiet, -q
-              Quiet mode (no output)
+       -X, --request METHOD
+              Specify request method (GET, POST, PUT, DELETE, PATCH, etc.)
+       -H, --header HEADER
+              Pass custom header to server (can be used multiple times)
+       -d, --data DATA
+              Send specified data in request body
+       -F, --form FIELD=VALUE
+              Submit form field (use @file for file upload)
+       -u, --user USERNAME[:PASSWORD]
+              Authenticate with username and password
+       -b, --cookie COOKIE
+              Send cookie with request
+       -c, --cookie-jar FILE
+              Write cookies to FILE
+       -o, --output FILE
+              Write output to FILE instead of stdout
+       -O, --remote-name
+              Write output to file named as remote (from URL)
+       -L, --location
+              Follow redirects
+       -i, --include
+              Include response headers in output
+       -I, --head
+              Fetch headers only (HEAD request)
+       -v, --verbose
+              Enable verbose output for debugging
+       -s, --silent
+              Silent mode (no progress/error info)
+       --data-raw DATA
+              Send raw data (no special interpretation)
+       -G, --get
+              Use HTTP GET with -d data as query parameters
        -h, --help
               Display this help and exit
 
-REQUEST ITEMS
-       Header:
-              Header:value     Set request header
-
-       URL Parameters:
-              name==value      Add URL query parameter
-
-       JSON Data Fields (default mode):
-              field=value      String field
-              field:=value     Non-string JSON field (number, bool, etc.)
-              field:=@file     Read JSON from file in MemFS
-              field=@file      Read string from file in MemFS
-
-       Form Fields (--form mode):
-              field=value      Form field
-              field@file       Upload file from MemFS
-
 EXAMPLES
-       http GET http://httpbin.org/get
-              Simple GET request
+       curl http://example.com
+              Fetch and display URL contents
 
-       http :3000/api/users
-              Shorthand for localhost:3000
-
-       http POST httpbin.org/post name=John age:=30
-              POST JSON data
-
-       http --form POST httpbin.org/post field=value
+       curl -X POST -d "key=value" http://api.example.com/endpoint
               POST form data
 
-       http PUT api.example.com/users/1 name=Jane
-              PUT request with JSON
+       curl -H "Content-Type: application/json" -d '{"key":"value"}' http://api.example.com
+              POST JSON data with custom header
 
-       http GET httpbin.org/get X-API-Key:secret123
-              Add custom header
+       curl -X GET "http://api.example.com/search?q=test"
+              GET with query parameters
 
-       http POST httpbin.org/post q==search page==1
-              Add URL parameters
+       curl -u username:password http://example.com
+              Authenticate with basic auth
 
-       echo "raw data" | http POST httpbin.org/post
-              Send raw data via stdin
+       curl -o output.html http://example.com
+              Save response to file
 
-       http --raw @data.json POST api.example.com/endpoint
-              Send raw data from file
+       curl -L http://example.com
+              Follow redirects
 
-       http -d -o output.html GET example.com
-              Download and save response body
+       curl -i http://example.com
+              Include response headers in output
 
-       http --json POST api.example.com data=@input.txt
-              Send file content as JSON field
+       curl -X DELETE http://api.example.com/resource/123
+              Make DELETE request
+
+       echo '{"data":"test"}' | curl -X POST -d @- http://api.example.com
+              Pipe data to curl via stdin
 
 FEATURES
-       - Automatic JSON/form content negotiation
-       - File upload support from MemFS
-       - Piped input support for request body
-       - Download and resume capabilities
-       - Custom headers and URL parameters
-       - Localhost shorthand notation
+       - Supports HTTP, HTTPS, FTP, and other protocols
+       - Custom headers and authentication
+       - Form data and file uploads
+       - Cookie handling
+       - Redirect following
+       - Progress meter and verbose output
 
 SEE ALSO
-       curl, wget, echo, cat`,
+       wget, http, cat`,
 
         kiana: `NAME
        kiana - LLM agent with memshell access
@@ -767,7 +901,7 @@ EXAMPLES
 AVAILABLE COMMANDS
        The agent can use any MemShell command including:
        ls, cat, pwd, cd, mkdir, touch, rm, echo, date, grep,
-       find, sed, diff, patch, write, node, import, export, http
+       find, sed, diff, patch, jqn, write, node, import, export, http
 
 FEATURES
        - Command substitution: $(command)

@@ -42,8 +42,11 @@ export function node(context: CommandContext, args: string[]): string {
     const parsed = context.parseArgsWithHelp(parser, args);
     if (typeof parsed === 'string') return parsed; // Help text
 
-    // Parse environment variables
-    const env: Record<string, string> = {};
+    // Parse environment variables from session first, then CLI overrides
+    const env: Record<string, string> = {
+        ...context.session.getAllEnv()
+    };
+    
     if (parsed.env_vars) {
         for (const envVar of parsed.env_vars) {
             const [key, ...valueParts] = envVar.split('=');
@@ -66,13 +69,28 @@ export function node(context: CommandContext, args: string[]): string {
     }
 
     try {
-        const result = context.jsEngine.runScript(parsed.script, {
-            positionalArgs: parsed.args,
-            flagArgs: {},
-            env,
-            vmOptions,
-        });
-        return result.output;
+        // Set working directory from session before running script
+        const sessionCwd = context.session.getCwd();
+        const previousCwd = context.fs.getCurrentDirectory();
+        
+        try {
+            context.fs.changeDirectory(sessionCwd);
+            
+            const result = context.jsEngine.runScript(parsed.script, {
+                positionalArgs: parsed.args,
+                flagArgs: {},
+                env,
+                vmOptions,
+            });
+            return result.output;
+        } finally {
+            // Restore previous working directory
+            try {
+                context.fs.changeDirectory(previousCwd);
+            } catch (e) {
+                // Ignore if we can't restore
+            }
+        }
     } catch (err: any) {
         throw new Error(`node: execution error: ${err.message}`);
     }
