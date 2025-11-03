@@ -34,6 +34,7 @@ import { find } from './util/find';
 import { importCommand } from './io/import';
 import { exportCommand } from './io/export';
 import { node } from './io/node';
+import { vim } from './io/vim';
 
 // net commands
 import { curl } from './io/curl';
@@ -72,6 +73,7 @@ export const COMMANDS: Record<string, CommandDefinition> = {
     import: { execute: importCommand },
     export: { execute: exportCommand },
     node: { execute: node },
+    vim: { execute: vim },
 
     // net commands
     curl: { execute: curl, acceptsStdin: true },

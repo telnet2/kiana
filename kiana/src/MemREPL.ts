@@ -69,6 +69,7 @@ Available Commands:
     rm [options] <path...>     - Remove files or directories
                                  -r, -R: recursive removal
     write <file> <content>     - Write content to file
+    vim <file>                 - Edit file interactively with vim
 
   Search and Manipulation:
     grep [options] <pattern> <file...>  - Search for pattern in files
