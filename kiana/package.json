@@ -48,7 +48,11 @@
         "typescript": "^5.9.3"
     },
     "scripts": {
-        "build": "tsc -p tsconfig.json",
+        "build": "tsc -p tsconfig.json && npm run build:memsh",
+        "build:memsh": "npm run compile:memsh && npm run copy:memsh",
+        "compile:memsh": "tsc src/memsh.ts --outDir bin --target es2020 --module commonjs --moduleResolution node --skipLibCheck",
+        "copy:memsh": "chmod +x bin/memsh.js && mv bin/memsh.js bin/memsh",
+        "memsh": "npm run build:memsh && ./bin/memsh",
         "test": "npm run build && npx mocha lib/test/*.test.js"
     }
 }

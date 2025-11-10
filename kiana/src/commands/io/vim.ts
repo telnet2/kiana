@@ -8,6 +8,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { ArgumentParser } from 'argparse';
+import { MemFS, MemFile, MemNode } from '../../MemFS';
 
 export function vim(context: CommandContext, args: string[]): string {
     const parser = new ArgumentParser({
@@ -60,7 +61,9 @@ export function vim(context: CommandContext, args: string[]): string {
 
         // Update or create the file in memFS
         if (node) {
-            node.write(modifiedContent);
+            if (node instanceof MemFile) {
+                node.write(modifiedContent);
+            }
         } else {
             context.fs.createFile(filePath, modifiedContent);
         }
