@@ -4,6 +4,10 @@ import { MemREPL } from './MemREPL';
 import { ARKConfig } from './KianaAgentV6';
 import * as fs from 'fs';
 import * as path from 'path';
+import { loadEnv, getARKConfigFromEnv } from './envLoader';
+
+// Load environment variables from .env files
+loadEnv();
 
 /**
  * CLI Options Interface
@@ -28,12 +32,8 @@ function parseCliArgs(): CLIOptions {
     verbose: false,
   };
 
-  // Parse ARK configuration from environment or command line
-  const arkConfig: ARKConfig = {
-    modelId: process.env.ARK_MODEL_ID || 'doubao-pro-32k',
-    apiKey: process.env.ARK_API_KEY || '',
-    baseURL: process.env.ARK_BASE_URL || 'https://ark-ap-southeast.byteintl.net/api/v3'
-  };
+  // Parse ARK configuration from environment (including .env files) or command line
+  const arkConfig: ARKConfig = getARKConfigFromEnv();
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];

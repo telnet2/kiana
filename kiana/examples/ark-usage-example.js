@@ -13,12 +13,13 @@
  *   ARK_MODEL_ID=doubao-pro-32k ARK_API_KEY=your-key node examples/ark-usage-example.js
  */
 
-const { runKianaV6 } = require('../lib/KianaAgentV6');
-const { MemTools } = require('../lib/MemTools');
-const { BufferWriter } = require('../lib/Writer');
+const { runKianaV6 } = require('../lib/src/KianaAgentV6');
+const { MemTools } = require('../lib/src/MemTools');
+const { BufferWriter } = require('../lib/src/Writer');
+const { loadEnv } = require('../lib/src/envLoader');
 
-// Load environment variables
-require('dotenv').config();
+// Load environment variables from .env files
+loadEnv();
 
 async function arkExample() {
     console.log('🚀 Kiana Agent - ARK LLM Usage Example\n');

@@ -4,6 +4,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const MemREPL_1 = require("./MemREPL.js");
 const fs = require("fs");
 const path = require("path");
+const envLoader_1 = require("./envLoader");
+// Load environment variables from .env files
+(0, envLoader_1.loadEnv)();
 /**
  * Parse command line arguments
  */
@@ -15,12 +18,8 @@ function parseCliArgs() {
         interactive: true,
         verbose: false,
     };
-    // Parse ARK configuration from environment or command line
-    const arkConfig = {
-        modelId: process.env.ARK_MODEL_ID || 'doubao-pro-32k',
-        apiKey: process.env.ARK_API_KEY || '',
-        baseURL: process.env.ARK_BASE_URL || 'https://ark-ap-southeast.byteintl.net/api/v3'
-    };
+    // Parse ARK configuration from environment (including .env files) or command line
+    const arkConfig = (0, envLoader_1.getARKConfigFromEnv)();
     for (let i = 0; i < args.length; i++) {
         const arg = args[i];
         if (arg === '-c') {

@@ -5,6 +5,10 @@
 import { runKianaV6 } from '../src/KianaAgentV6';
 import { MemTools } from '../src/MemTools';
 import { Writer } from '../src/Writer';
+import { loadEnv } from '../src/envLoader';
+
+// Load environment variables from .env files
+loadEnv();
 
 async function exampleARKUsage() {
   console.log('🤖 Kiana Agent with AI SDK v6 - ARK Example\n');

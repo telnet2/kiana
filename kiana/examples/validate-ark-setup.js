@@ -10,12 +10,13 @@
  *   node examples/validate-ark-setup.js
  */
 
-const { runKianaV6 } = require('../lib/KianaAgentV6');
-const { MemTools } = require('../lib/MemTools');
-const { BufferWriter } = require('../lib/Writer');
+const { runKianaV6 } = require('../lib/src/KianaAgentV6');
+const { MemTools } = require('../lib/src/MemTools');
+const { BufferWriter } = require('../lib/src/Writer');
+const { loadEnv } = require('../lib/src/envLoader');
 
-// Load environment variables
-require('dotenv').config();
+// Load environment variables from .env files
+loadEnv();
 
 async function validateARKSetup() {
     console.log('🔍 ARK Setup Validation\n');

@@ -6,6 +6,7 @@
 const { expect } = require('chai');
 const { MemTools } = require('../MemTools');
 const { BufferWriter } = require('../Writer');
+const { loadEnv } = require('../src/envLoader');
 const { 
   runKianaV6, 
   runKiana, 
@@ -13,6 +14,9 @@ const {
   ARKConfig,
   DEFAULT_SYSTEM_PROMPT 
 } = require('../KianaAgentV6');
+
+// Load environment variables from .env files
+loadEnv();
 
 describe('Kiana Agent AI SDK v6 Compatibility Tests', function() {
   let memtools: any;
@@ -48,7 +52,7 @@ describe('Kiana Agent AI SDK v6 Compatibility Tests', function() {
         instruction: 'List the current directory contents',
         arkConfig: {
           modelId: process.env.ARK_MODEL_ID || 'doubao-pro-32k',
-          apiKey: process.env.ARK_API_KEY,
+          apiKey: process.env.ARK_API_KEY || '',
           baseURL: process.env.ARK_BASE_URL || 'https://ark-ap-southeast.byteintl.net/api/v3'
         },
         verbose: false,
