@@ -5,9 +5,9 @@
  * Edge case tests for command substitution $(...)
  */
 
-const { MemTools } = require('../lib/MemTools');
+const { MemTools } = require('../src/MemTools');
 
-function testCase(name, command, expectError = false) {
+function testCase(name: string, command: string, expectError: boolean = false): boolean {
     console.log(`\n${'='.repeat(70)}`);
     console.log(`Test: ${name}`);
     console.log(`Command: ${command}`);
@@ -25,18 +25,18 @@ function testCase(name, command, expectError = false) {
         return true;
     } catch (err) {
         if (expectError) {
-            console.log('✓ Expected error:', err.message);
+            console.log('✓ Expected error:', (err as Error).message);
             return true;
         }
-        console.log('❌ FAILED: Unexpected error:', err.message);
+        console.log('❌ FAILED: Unexpected error:', (err as Error).message);
         return false;
     }
 }
 
-function runTests() {
+function runTests(): boolean {
     console.log('\n🧪 COMMAND SUBSTITUTION EDGE CASE TESTS\n');
 
-    const results = [];
+    const results: boolean[] = [];
 
     // ========== Basic Tests ==========
     console.log('\n📋 BASIC TESTS');

@@ -1,4 +1,4 @@
-const { MemShell } = require('./src/MemShell.js');
+import { MemShell } from '../src/MemShell';
 
 console.log('Testing Advanced Grep Features with argparse:\n');
 
@@ -13,7 +13,14 @@ Line 4: Another error
 Line 5: Last line
 EOF`);
 
-const testCases = [
+interface TestCase {
+    name: string;
+    command: string;
+    desc: string;
+    expectError?: boolean;
+}
+
+const testCases: TestCase[] = [
     {
         name: '-C flag (context both before and after)',
         command: 'grep -C 1 error /test.txt',
@@ -52,7 +59,7 @@ const testCases = [
     }
 ];
 
-testCases.forEach(({ name, command, desc, expectError }) => {
+testCases.forEach(({ name, command, desc, expectError }: TestCase): void => {
     console.log(`\n${'='.repeat(70)}`);
     console.log(`[${name}]`);
     console.log(`Description: ${desc}`);
@@ -60,7 +67,7 @@ testCases.forEach(({ name, command, desc, expectError }) => {
     console.log(`${'='.repeat(70)}`);
 
     try {
-        const result = shell.exec(command);
+        const result: string = shell.exec(command);
 
         if (expectError) {
             console.log(`❌ FAIL: Expected error but got: ${JSON.stringify(result)}`);
@@ -68,13 +75,13 @@ testCases.forEach(({ name, command, desc, expectError }) => {
             console.log('✅ PASS');
             console.log(`Output:\n${result}`);
         }
-    } catch (err) {
+    } catch (err: unknown) {
         if (expectError) {
             console.log(`✅ PASS: Got expected error`);
-            console.log(`Error: ${err.message}`);
+            console.log(`Error: ${err instanceof Error ? err.message : String(err)}`);
         } else {
             console.log(`❌ FAIL: Unexpected error`);
-            console.log(`Error: ${err.message}`);
+            console.log(`Error: ${err instanceof Error ? err.message : String(err)}`);
         }
     }
 });

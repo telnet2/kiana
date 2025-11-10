@@ -1,8 +1,15 @@
-const { tokenize, parsePipeline, parseRedirections } = require('./src/CommandParser.js');
+#!/usr/bin/env node
+
+import { tokenize, parsePipeline, parseRedirections, PipelineSegment, Redirection } from '../src/CommandParser';
 
 console.log('Testing CommandParser edge cases:\n');
 
-const testCases = [
+interface TestCase {
+    input: string;
+    desc: string;
+}
+
+const testCases: TestCase[] = [
     // Basic cases (should work)
     { input: 'echo hello world', desc: 'Basic command' },
     { input: 'cat file.txt | grep test', desc: 'Simple pipe' },
@@ -29,22 +36,26 @@ const testCases = [
     { input: 'echo {1..3}', desc: 'Brace expansion (not supported)' },
 ];
 
-testCases.forEach(({ input, desc }) => {
+testCases.forEach(({ input, desc }: TestCase): void => {
     console.log(`\n[${desc}]`);
     console.log(`Input: ${input}`);
     try {
-        const tokens = tokenize(input);
+        const tokens: string[] = tokenize(input);
         console.log(`Tokens: ${JSON.stringify(tokens)}`);
 
-        const pipeline = parsePipeline(input);
+        const pipeline: PipelineSegment[] = parsePipeline(input);
         console.log(`Pipeline: ${JSON.stringify(pipeline)}`);
 
         if (pipeline.length > 0) {
-            const { command, redirections } = parseRedirections(pipeline[0]);
+            const { command, redirections } = parseRedirections(pipeline[0] as any);
             console.log(`Command: ${JSON.stringify(command)}`);
             console.log(`Redirections: ${JSON.stringify(redirections)}`);
         }
-    } catch (err) {
-        console.log(`ERROR: ${err.message}`);
+    } catch (err: unknown) {
+        if (err instanceof Error) {
+            console.log(`ERROR: ${err.message}`);
+        } else {
+            console.log(`ERROR: ${String(err)}`);
+        }
     }
 });

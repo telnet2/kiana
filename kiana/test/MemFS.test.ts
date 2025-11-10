@@ -1,11 +1,11 @@
-const { expect } = require('chai');
-const { MemFS, MemFile, MemDirectory } = require('../lib/MemFS');
-const realFs = require('fs');
-const path = require('path');
-const os = require('os');
+import { expect } from 'chai';
+import { MemFS, MemFile, MemDirectory } from '../src/MemFS';
+import * as realFs from 'fs';
+import * as path from 'path';
+import * as os from 'os';
 
 describe('MemFS - In-Memory File System', () => {
-    let fs;
+    let fs: MemFS;
 
     beforeEach(() => {
         fs = new MemFS();
@@ -22,7 +22,9 @@ describe('MemFS - In-Memory File System', () => {
         it('should read a file', () => {
             fs.createFile('test.txt', 'content');
             const node = fs.resolvePath('test.txt');
-            expect(node.read()).to.equal('content');
+            expect(node).to.not.be.null;
+            expect(node!.isFile()).to.be.true;
+            expect((node as MemFile).read()).to.equal('content');
         });
 
         it('should write to a file', () => {
@@ -94,13 +96,13 @@ describe('MemFS - In-Memory File System', () => {
         it('should resolve relative path', () => {
             fs.createDirectory('dir');
             const node = fs.resolvePath('dir');
-            expect(node.name).to.equal('dir');
+            expect(node?.name).to.equal('dir');
         });
 
         it('should resolve absolute path', () => {
             fs.createDirectory('dir');
             const node = fs.resolvePath('/dir');
-            expect(node.name).to.equal('dir');
+            expect(node?.name).to.equal('dir');
         });
 
         it('should return null for non-existent path', () => {
@@ -112,8 +114,10 @@ describe('MemFS - In-Memory File System', () => {
             fs.createDirectories('a/b/c');
             fs.createFile('a/b/c/file.txt', 'content');
             const node = fs.resolvePath('a/b/c/file.txt');
-            expect(node.name).to.equal('file.txt');
-            expect(node.read()).to.equal('content');
+            expect(node).to.not.be.null;
+            expect(node!.name).to.equal('file.txt');
+            expect(node!.isFile()).to.be.true;
+            expect((node as MemFile).read()).to.equal('content');
         });
     });
 
@@ -157,12 +161,13 @@ describe('MemFS - In-Memory File System', () => {
             expect(file.createdAt).to.be.instanceOf(Date);
         });
 
-        it('should track modification time', () => {
+        it('should track modification time', (done) => {
             const file = fs.createFile('test.txt', 'initial');
             const initialTime = file.modifiedAt;
             setTimeout(() => {
                 file.write('updated');
                 expect(file.modifiedAt.getTime()).to.be.greaterThan(initialTime.getTime());
+                done();
             }, 10);
         });
 
@@ -170,7 +175,7 @@ describe('MemFS - In-Memory File System', () => {
             fs.createDirectories('a/b');
             fs.createFile('a/b/file.txt', '');
             const node = fs.resolvePath('a/b/file.txt');
-            expect(node.getPath()).to.equal('/a/b/file.txt');
+            expect(node?.getPath()).to.equal('/a/b/file.txt');
         });
 
         it('should identify node types', () => {
@@ -184,7 +189,7 @@ describe('MemFS - In-Memory File System', () => {
     });
 
     describe('Clone Operations', () => {
-        let testDir;
+        let testDir: string;
 
         beforeEach(() => {
             // Create a unique temporary directory for each test
@@ -254,12 +259,12 @@ describe('MemFS - In-Memory File System', () => {
         });
 
         it('should throw error when target path is not provided', () => {
-            expect(() => fs.clone()).to.throw('Target path is required');
+            expect(() => (fs as any).clone()).to.throw('Target path is required');
         });
     });
 
     describe('Seed Operations', () => {
-        let testDir;
+        let testDir: string;
 
         beforeEach(() => {
             // Create a unique temporary directory for each test
@@ -300,11 +305,23 @@ describe('MemFS - In-Memory File System', () => {
             expect(fs.resolvePath('/root.txt')).to.not.be.null;
 
             // Verify file contents
-            expect(fs.resolvePath('/dir1/file1.txt').read()).to.equal('content1');
-            expect(fs.resolvePath('/dir1/file2.txt').read()).to.equal('content2');
-            expect(fs.resolvePath('/dir2/file3.txt').read()).to.equal('content3');
-            expect(fs.resolvePath('/dir2/subdir/file4.txt').read()).to.equal('content4');
-            expect(fs.resolvePath('/root.txt').read()).to.equal('root content');
+            const file1 = fs.resolvePath('/dir1/file1.txt');
+            const file2 = fs.resolvePath('/dir1/file2.txt');
+            const file3 = fs.resolvePath('/dir2/file3.txt');
+            const file4 = fs.resolvePath('/dir2/subdir/file4.txt');
+            const rootFile = fs.resolvePath('/root.txt');
+            
+            expect(file1).to.not.be.null;
+            expect(file2).to.not.be.null;
+            expect(file3).to.not.be.null;
+            expect(file4).to.not.be.null;
+            expect(rootFile).to.not.be.null;
+            
+            expect((file1 as MemFile).read()).to.equal('content1');
+            expect((file2 as MemFile).read()).to.equal('content2');
+            expect((file3 as MemFile).read()).to.equal('content3');
+            expect((file4 as MemFile).read()).to.equal('content4');
+            expect((rootFile as MemFile).read()).to.equal('root content');
         });
 
         it('should handle empty directory when seeding', () => {
@@ -322,7 +339,7 @@ describe('MemFS - In-Memory File System', () => {
         });
 
         it('should throw error when source path is not provided', () => {
-            expect(() => fs.seed()).to.throw('Source path is required');
+            expect(() => (fs as any).seed()).to.throw('Source path is required');
         });
 
         it('should seed and then clone successfully (round-trip test)', () => {

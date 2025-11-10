@@ -15,6 +15,9 @@
     "repository": "git@code.byted.org/crystal/kiana.git",
     "author": "Dereck Luo <dereck.luo@bytedance.com>",
     "dependencies": {
+        "@ai-sdk/openai": "^3.0.0-beta.51",
+        "@ai-sdk/openai-compatible": "^2.0.0-beta.32",
+        "ai": "^6.0.0-beta.94",
         "argparse": "^2.0.1",
         "deasync": "^0.1.30",
         "diff": "^8.0.2",
@@ -25,12 +28,15 @@
         "openai": "^6.7.0",
         "sh-syntax": "^0.5.8",
         "tar": "^7.5.2",
-        "vm2": "^3.9.20"
+        "vm2": "^3.9.20",
+        "zod": "^3.25.76"
     },
     "devDependencies": {
         "@types/argparse": "^2.0.17",
+        "@types/chai": "^5.2.3",
         "@types/diff": "^7.0.2",
         "@types/micromatch": "^4.0.10",
+        "@types/mocha": "^10.0.10",
         "@types/node": "^20.16.6",
         "@types/tar": "^6.1.13",
         "babel-cli": "^6.26.0",
@@ -43,6 +49,6 @@
     },
     "scripts": {
         "build": "tsc -p tsconfig.json",
-        "test": "npm run build && npx mocha test/*.test.js"
+        "test": "npm run build && npx mocha lib/test/*.test.js"
     }
 }

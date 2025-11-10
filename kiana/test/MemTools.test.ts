@@ -1,9 +1,9 @@
-const { expect } = require('chai');
-const { MemTools } = require('../lib/MemTools');
-const { MemFS } = require('../lib/MemFS');
+import { expect } from 'chai';
+import { MemTools, ToolCall, FileSystemState } from '../src/MemTools';
+import { MemFS } from '../src/MemFS';
 
 describe('MemTools - LLM Tool Interface', () => {
-    let memtools;
+    let memtools: MemTools;
 
     beforeEach(() => {
         memtools = new MemTools();
@@ -13,7 +13,7 @@ describe('MemTools - LLM Tool Interface', () => {
         it('should create new instance with default MemFS', () => {
             expect(memtools).to.be.instanceOf(MemTools);
             expect(memtools.fs).to.exist;
-            expect(memtools.shell).to.exist;
+            expect((memtools as any).shell).to.exist;
         });
 
         it('should accept existing MemFS instance', () => {
@@ -121,7 +121,7 @@ EOF`;
 
     describe('handleToolCall()', () => {
         it('should handle OpenAI-style tool call', () => {
-            const toolCall = {
+            const toolCall: ToolCall = {
                 arguments: { command: 'echo test' }
             };
             const result = memtools.handleToolCall(toolCall);
@@ -129,7 +129,7 @@ EOF`;
         });
 
         it('should handle Anthropic-style tool call', () => {
-            const toolCall = {
+            const toolCall: ToolCall = {
                 input: { command: 'echo test' }
             };
             const result = memtools.handleToolCall(toolCall);
@@ -137,7 +137,7 @@ EOF`;
         });
 
         it('should handle direct command property', () => {
-            const toolCall = {
+            const toolCall: ToolCall = {
                 command: 'echo test'
             };
             const result = memtools.handleToolCall(toolCall);
@@ -173,7 +173,7 @@ EOF`;
             memtools.exec('mkdir dir1');
             memtools.exec('echo content > file1.txt');
 
-            const state = memtools.exportState();
+            const state: FileSystemState = memtools.exportState();
 
             expect(state).to.have.property('cwd', '/');
             expect(state).to.have.property('root');
@@ -187,7 +187,7 @@ EOF`;
             memtools.exec('cd project');
             memtools.exec('echo "Hello" > readme.txt');
 
-            const state = memtools.exportState();
+            const state: FileSystemState = memtools.exportState();
 
             // Reset and import
             memtools.reset();
@@ -206,7 +206,7 @@ EOF`;
             memtools.exec('echo "component" > src/components/Button.js');
             memtools.exec('echo "test" > tests/unit/test.js');
 
-            const state = memtools.exportState();
+            const state: FileSystemState = memtools.exportState();
             memtools.reset();
             memtools.importState(state);
 
