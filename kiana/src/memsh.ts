@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
-import { MemREPL } from '../lib/MemREPL';
+import { MemREPL } from './MemREPL';
+import { ARKConfig } from './KianaAgentV6';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -11,6 +12,8 @@ interface CLIOptions {
   command: string | null;
   script: string | null;
   interactive: boolean;
+  arkConfig?: ARKConfig;
+  verbose: boolean;
 }
 
 /**
@@ -22,6 +25,14 @@ function parseCliArgs(): CLIOptions {
     command: null,
     script: null,
     interactive: true,
+    verbose: false,
+  };
+
+  // Parse ARK configuration from environment or command line
+  const arkConfig: ARKConfig = {
+    modelId: process.env.ARK_MODEL_ID || 'doubao-pro-32k',
+    apiKey: process.env.ARK_API_KEY || '',
+    baseURL: process.env.ARK_BASE_URL || 'https://ark-ap-southeast.byteintl.net/api/v3'
   };
 
   for (let i = 0; i < args.length; i++) {
@@ -30,6 +41,14 @@ function parseCliArgs(): CLIOptions {
     if (arg === '-c') {
       options.command = args[++i];
       options.interactive = false;
+    } else if (arg === '--ark-model') {
+      arkConfig.modelId = args[++i];
+    } else if (arg === '--ark-api-key') {
+      arkConfig.apiKey = args[++i];
+    } else if (arg === '--ark-base-url') {
+      arkConfig.baseURL = args[++i];
+    } else if (arg === '--verbose' || arg === '-v') {
+      options.verbose = true;
     } else if (arg === '-h' || arg === '--help') {
       showHelp();
       process.exit(0);
@@ -40,6 +59,11 @@ function parseCliArgs(): CLIOptions {
       options.script = arg;
       options.interactive = false;
     }
+  }
+
+  // Only set ARK config if API key is provided
+  if (arkConfig.apiKey) {
+    options.arkConfig = arkConfig;
   }
 
   return options;
@@ -63,19 +87,31 @@ function showVersion(): void {
  */
 function showHelp(): void {
   console.log(`
-memsh - In-Memory File System Shell
+memsh - In-Memory File System Shell with ARK AI Integration
 
 Usage:
-  memsh                    Start interactive shell
-  memsh -c <command>       Execute a single command
-  memsh <script.sh>        Execute commands from a script file
+  memsh                              Start interactive shell
+  memsh -c <command>                 Execute a single command
+  memsh <script.sh>                  Execute commands from a script file
 
 Options:
-  -h, --help               Show this help message
-  --version                Show version information
+  -h, --help                         Show this help message
+  --version                          Show version information
+  -v, --verbose                      Enable verbose output
+  
+ARK Configuration (for AI features):
+  --ark-model <model>                ARK model ID (default: doubao-pro-32k)
+  --ark-api-key <key>                ARK API key
+  --ark-base-url <url>               ARK base URL (default: https://ark-ap-southeast.byteintl.net/api/v3)
+
+Environment Variables:
+  ARK_MODEL_ID                       Default ARK model ID
+  ARK_API_KEY                        ARK API key
+  ARK_BASE_URL                       ARK base URL
 
 Interactive Mode:
   Once in the shell, type "help" to see available commands.
+  Type "kiana" to enter AI conversational mode.
 
 Examples:
   # Start interactive shell
@@ -84,8 +120,11 @@ Examples:
   # Execute a single command
   $ memsh -c "mkdir test && cd test && touch file.txt"
 
-  # Run a script
-  $ memsh script.sh
+  # Run with custom ARK model
+  $ memsh --ark-model doubao-pro-32k --ark-api-key your-key
+
+  # Run a script with ARK configuration
+  $ memsh script.sh --ark-api-key your-key
 
 For more information, visit: https://github.com/telnet2/utileejs
 `);
@@ -96,7 +135,7 @@ For more information, visit: https://github.com/telnet2/utileejs
  */
 function main(): void {
   const options = parseCliArgs();
-  const repl = new MemREPL();
+  const repl = new MemREPL(null, null, options.arkConfig);
 
   if (options.command) {
     // Execute single command
