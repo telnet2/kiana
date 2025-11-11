@@ -125,18 +125,16 @@ async function runLocal({ prompt, systemPrompt, maxRounds, ark, verbose }: ChatA
 
   const stream: any = await createAgentUIStream({ agent, messages });
   for await (const m of stream as any) {
-    for (const part of (m as any).parts) {
-      if (isTextUIPart(part)) process.stdout.write(part.text);
-      if (isToolOrDynamicToolUIPart(part)) {
-        const name = getToolOrDynamicToolName(part);
-        if (part.state === 'output-available') {
-          const out = typeof (part as any).output === 'string' ? (part as any).output : JSON.stringify((part as any).output);
-          process.stderr.write(`\n[tool ${name}] ${out}\n`);
-        }
-        if (part.state === 'output-error') {
-          process.stderr.write(`\n[tool ${name} error] ${(part as any).errorText || 'unknown error'}\n`);
-        }
-      }
+    // Handle different message types from the stream
+    if (m.type === 'text-delta' && m.delta) {
+      process.stdout.write(m.delta);
+    } else if (m.type === 'tool-result' && m.result) {
+      const name = m.toolName || 'unknown';
+      const out = typeof m.result === 'string' ? m.result : JSON.stringify(m.result);
+      process.stderr.write(`\n[tool ${name}] ${out}\n`);
+    } else if (m.type === 'tool-error' && m.error) {
+      const name = m.toolName || 'unknown';
+      process.stderr.write(`\n[tool ${name} error] ${m.error}\n`);
     }
   }
   process.stdout.write('\n');

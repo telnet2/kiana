@@ -4,8 +4,8 @@
  */
 
 const { expect } = require('chai');
-const { MemTools } = require('../MemTools');
-const { BufferWriter } = require('../Writer');
+const { MemTools } = require('../src/MemTools');
+const { BufferWriter } = require('../src/Writer');
 const { loadEnv } = require('../src/envLoader');
 const { 
   runKianaV6, 
@@ -13,7 +13,7 @@ const {
   KianaOptionsV6,
   ARKConfig,
   DEFAULT_SYSTEM_PROMPT 
-} = require('../KianaAgentV6');
+} = require('../src/KianaAgentV6');
 
 // Load environment variables from .env files
 loadEnv();
@@ -44,9 +44,8 @@ describe('Kiana Agent AI SDK v6 Compatibility Tests', function() {
   });
 
   describe('Basic Functionality', function() {
-      console.log(process.env);
     it('should execute simple commands', async function() {
-      this.timeout(10000);
+      this.timeout(30000); // Increase timeout for API calls
 
       const options = {
         instruction: 'List the current directory contents',
@@ -76,7 +75,7 @@ describe('Kiana Agent AI SDK v6 Compatibility Tests', function() {
     });
 
     it('should handle streaming mode', async function() {
-      this.timeout(10000);
+      this.timeout(30000); // Increase timeout for API calls
 
       const options = {
         instruction: 'Show me the current directory',
@@ -218,7 +217,7 @@ describe('Kiana Agent AI SDK v6 Compatibility Tests', function() {
 
   describe('Backward Compatibility', function() {
     it('should work with old runKiana function signature', async function() {
-      this.timeout(10000);
+      this.timeout(30000); // Increase timeout for API calls
 
       // Old-style options (what existing code would pass) - now mapped to ARK
       const oldOptions = {

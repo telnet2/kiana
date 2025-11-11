@@ -237,6 +237,11 @@ export async function runKianaV6(
   writer: Writer
 ): Promise<string> {
   try {
+    // Validate instruction
+    if (!options.instruction || options.instruction.trim() === '') {
+      throw new Error('Instruction is required');
+    }
+
     // Create the agent
     const agent = await createKianaAgent(memtools, options);
     
@@ -245,8 +250,8 @@ export async function runKianaV6(
       console.log(`[Kiana] Instruction: ${options.instruction}`);
     }
 
-    // Derive instruction for non-UI runs if missing
-    const instruction = options.instruction ?? 'Start';
+    // Use the instruction
+    const instruction = options.instruction;
     // Execute based on streaming preference
     if (options.stream) {
       return await runKianaStreaming(

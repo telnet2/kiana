@@ -114,19 +114,18 @@ async function runLocal({ prompt, systemPrompt, maxRounds, ark, verbose }) {
     ];
     const stream = await (0, ai_1.createAgentUIStream)({ agent, messages });
     for await (const m of stream) {
-        for (const part of m.parts) {
-            if ((0, ai_1.isTextUIPart)(part))
-                process.stdout.write(part.text);
-            if ((0, ai_1.isToolOrDynamicToolUIPart)(part)) {
-                const name = (0, ai_1.getToolOrDynamicToolName)(part);
-                if (part.state === 'output-available') {
-                    const out = typeof part.output === 'string' ? part.output : JSON.stringify(part.output);
-                    process.stderr.write(`\n[tool ${name}] ${out}\n`);
-                }
-                if (part.state === 'output-error') {
-                    process.stderr.write(`\n[tool ${name} error] ${part.errorText || 'unknown error'}\n`);
-                }
-            }
+        // Handle different message types from the stream
+        if (m.type === 'text-delta' && m.delta) {
+            process.stdout.write(m.delta);
+        }
+        else if (m.type === 'tool-result' && m.result) {
+            const name = m.toolName || 'unknown';
+            const out = typeof m.result === 'string' ? m.result : JSON.stringify(m.result);
+            process.stderr.write(`\n[tool ${name}] ${out}\n`);
+        }
+        else if (m.type === 'tool-error' && m.error) {
+            const name = m.toolName || 'unknown';
+            process.stderr.write(`\n[tool ${name} error] ${m.error}\n`);
         }
     }
     process.stdout.write('\n');
