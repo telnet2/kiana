@@ -5,15 +5,16 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.man = man;
 const argparse_1 = require("argparse");
+const micromatch = require("micromatch");
 function man(context, args) {
     const parser = new argparse_1.ArgumentParser({
         prog: 'man',
-        description: 'Display manual pages for commands',
+        description: 'Display manual pages for commands (supports wildcards like *import*)',
         add_help: true
     });
     parser.add_argument('command', {
         nargs: '?',
-        help: 'Command to show manual for'
+        help: 'Command to show manual for (supports wildcards like *ls*, *import*)'
     });
     const parsed = context.parseArgsWithHelp(parser, args);
     if (typeof parsed === 'string')
@@ -23,11 +24,20 @@ function man(context, args) {
         // List all available commands
         return getManIndex();
     }
-    const manPage = getManPage(command);
-    if (!manPage) {
-        return `No manual entry for ${command}`;
+    // Check if command contains wildcard patterns
+    const hasWildcards = command.includes('*') || command.includes('?') || command.includes('[');
+    if (hasWildcards) {
+        // Handle wildcard pattern matching for commands
+        return handleWildcardMan(command);
     }
-    return manPage;
+    else {
+        // Single command - existing logic
+        const manPage = getManPage(command);
+        if (!manPage) {
+            return `No manual entry for ${command}`;
+        }
+        return manPage;
+    }
 }
 /**
  * Get index of all available manual pages
@@ -63,11 +73,41 @@ Available commands:
 Use 'man <command>' to see detailed information about a command.`;
 }
 /**
- * Get manual page for a specific command
+ * Handle wildcard pattern matching for man commands
  */
-function getManPage(command) {
-    const manPages = {
-        ls: `NAME
+function handleWildcardMan(pattern) {
+    // Get all available commands from man pages
+    const allCommands = Object.keys(manPages);
+    // Filter commands that match the pattern
+    const matchingCommands = allCommands.filter(cmd => micromatch.isMatch(cmd, pattern));
+    if (matchingCommands.length === 0) {
+        return `No commands match pattern: ${pattern}`;
+    }
+    if (matchingCommands.length === 1) {
+        // Single match - show the full manual page
+        const manPage = getManPage(matchingCommands[0]);
+        return manPage || `No manual entry for ${matchingCommands[0]}`;
+    }
+    // Multiple matches - show list of matching commands with their descriptions
+    let result = `Commands matching pattern "${pattern}":\n\n`;
+    for (const cmd of matchingCommands.sort()) {
+        const manPage = getManPage(cmd);
+        if (manPage) {
+            // Extract the description from the man page (first line after NAME section)
+            const lines = manPage.split('\n');
+            const nameLine = lines.find(line => line.trim().startsWith(cmd + ' -'));
+            const description = nameLine ? nameLine.replace(cmd + ' -', '').trim() : 'No description available';
+            result += `  ${cmd.padEnd(12)} ${description}\n`;
+        }
+    }
+    result += `\nUse 'man <command>' to see detailed information about a specific command.`;
+    return result;
+}
+/**
+ * Manual pages database
+ */
+const manPages = {
+    ls: `NAME
        ls - list directory contents
 
 SYNOPSIS
@@ -95,7 +135,7 @@ EXAMPLES
 
 SEE ALSO
        pwd, cd, find`,
-        cat: `NAME
+    cat: `NAME
        cat - concatenate and display files
 
 SYNOPSIS
@@ -126,7 +166,7 @@ EXAMPLES
 
 SEE ALSO
        echo, grep, sed`,
-        pwd: `NAME
+    pwd: `NAME
        pwd - print working directory
 
 SYNOPSIS
@@ -141,7 +181,7 @@ EXAMPLES
 
 SEE ALSO
        cd, ls`,
-        cd: `NAME
+    cd: `NAME
        cd - change directory
 
 SYNOPSIS
@@ -163,7 +203,7 @@ EXAMPLES
 
 SEE ALSO
        pwd, ls, mkdir`,
-        mkdir: `NAME
+    mkdir: `NAME
        mkdir - make directories
 
 SYNOPSIS
@@ -190,7 +230,7 @@ EXAMPLES
 
 SEE ALSO
        cd, rm, ls`,
-        touch: `NAME
+    touch: `NAME
        touch - create empty file or update timestamp
 
 SYNOPSIS
@@ -209,7 +249,7 @@ EXAMPLES
 
 SEE ALSO
        cat, write, rm`,
-        rm: `NAME
+    rm: `NAME
        rm - remove files or directories
 
 SYNOPSIS
@@ -238,7 +278,7 @@ EXAMPLES
 
 SEE ALSO
        mkdir, touch, ls`,
-        echo: `NAME
+    echo: `NAME
        echo - display a line of text
 
 SYNOPSIS
@@ -262,7 +302,7 @@ EXAMPLES
 
 SEE ALSO
        cat, write`,
-        date: `NAME
+    date: `NAME
        date - display or set date and time
 
 SYNOPSIS
@@ -312,7 +352,7 @@ EXAMPLES
 
 SEE ALSO
        echo, write`,
-        grep: `NAME
+    grep: `NAME
        grep - search for patterns in files
 
 SYNOPSIS
@@ -357,7 +397,7 @@ EXAMPLES
 
 SEE ALSO
        sed, find, cat`,
-        find: `NAME
+    find: `NAME
        find - search for files in directory hierarchy
 
 SYNOPSIS
@@ -391,7 +431,7 @@ EXAMPLES
 
 SEE ALSO
        ls, grep, locate`,
-        sed: `NAME
+    sed: `NAME
        sed - stream editor for filtering and transforming text
 
 SYNOPSIS
@@ -427,7 +467,7 @@ EXAMPLES
 
 SEE ALSO
        grep, awk, tr`,
-        diff: `NAME
+    diff: `NAME
        diff - compare files line by line
 
 SYNOPSIS
@@ -470,7 +510,7 @@ EXAMPLES
 
 SEE ALSO
        patch, cmp, comm`,
-        patch: `NAME
+    patch: `NAME
        patch - apply a diff file to an original
 
 SYNOPSIS
@@ -505,7 +545,7 @@ EXAMPLES
 
 SEE ALSO
        diff, merge`,
-        jqn: `NAME
+    jqn: `NAME
        jqn - process JSON with jq syntax
 
 SYNOPSIS
@@ -595,7 +635,7 @@ FEATURES
 SEE ALSO
        grep, sed, cat
        Full jq documentation: https://stedolan.github.io/jq/`,
-        wc: `NAME
+    wc: `NAME
        wc - print newline, word, and byte counts for files
 
 SYNOPSIS
@@ -651,7 +691,7 @@ EXAMPLES
 
 SEE ALSO
        cat, grep, sed`,
-        write: `NAME
+    write: `NAME
        write - write text to a file
 
 SYNOPSIS
@@ -670,7 +710,7 @@ EXAMPLES
 
 SEE ALSO
        echo, cat, touch`,
-        import: `NAME
+    import: `NAME
        import - import file or directory from real filesystem
 
 SYNOPSIS
@@ -694,7 +734,7 @@ EXAMPLES
 
 SEE ALSO
        export, cp`,
-        export: `NAME
+    export: `NAME
        export - export file or directory to real filesystem
 
 SYNOPSIS
@@ -712,7 +752,7 @@ EXAMPLES
 
 SEE ALSO
        import, cp`,
-        node: `NAME
+    node: `NAME
        node - execute JavaScript file
 
 SYNOPSIS
@@ -745,7 +785,7 @@ EXAMPLES
 
 SEE ALSO
        write, cat`,
-        curl: `NAME
+    curl: `NAME
        curl - command-line tool for transferring data using URLs
 
 SYNOPSIS
@@ -833,7 +873,7 @@ FEATURES
 
 SEE ALSO
        wget, http, cat`,
-        kiana: `NAME
+    kiana: `NAME
        kiana - LLM agent with memshell access
 
 SYNOPSIS
@@ -886,7 +926,7 @@ ENVIRONMENT
 
 SEE ALSO
        All MemShell commands`,
-        man: `NAME
+    man: `NAME
        man - display manual pages
 
 SYNOPSIS
@@ -894,7 +934,14 @@ SYNOPSIS
 
 DESCRIPTION
        Display the manual page for COMMAND. If no COMMAND is given,
-       display a list of all available commands.
+       display a list of all available commands. Supports wildcards for
+       pattern matching multiple commands.
+
+WILDCARD SUPPORT
+       man supports glob patterns for matching multiple commands:
+       *     matches any sequence of characters
+       ?     matches any single character
+       [abc] matches any character in the brackets
 
 EXAMPLES
        man
@@ -906,8 +953,21 @@ EXAMPLES
        man grep
               Show manual for grep command
 
+       man *import*
+              Show manuals for all import-related commands
+
+       man *ls*
+              Show manuals for all commands containing "ls"
+
+       man ???
+              Show manuals for all 3-letter commands
+
 SEE ALSO
        help, --help flag on commands`
-    };
+};
+/**
+ * Get manual page for a specific command
+ */
+function getManPage(command) {
     return manPages[command] || null;
 }

@@ -90,7 +90,9 @@ Available Commands:
   Import/Export:
     import [options] <real-path> [mem-path]  - Import from real filesystem
                                               -r, -R: recursive (for directories)
+                                              Supports wildcards: *.md, *.txt, etc.
     export <mem-path> <real-path>           - Export to real filesystem
+                                              Supports wildcards: *.md, *.txt, etc.
 
   Execution:
     node <script.js> [args...]  - Execute JavaScript file in memory filesystem
@@ -123,6 +125,10 @@ Examples:
   $ find . --name "*.js"
   $ import -r /path/to/real/dir mydir
   $ export mydir /path/to/export
+  $ import *.md docs/     # Import all markdown files to docs/ directory
+  $ import src/*.js ./    # Import all JS files from src/ to current directory
+  $ export *.md output/   # Export all markdown files to output/ directory
+  $ export src/*.js backup/ # Export all JS files from src/ to backup/
 
   JSON Processing:
   $ echo '{"name":"John","age":30}' | jqn .name

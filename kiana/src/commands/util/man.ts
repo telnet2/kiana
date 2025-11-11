@@ -4,17 +4,18 @@
 
 import { CommandContext } from '../types';
 import { ArgumentParser } from 'argparse';
+import micromatch = require('micromatch');
 
 export function man(context: CommandContext, args: string[]): string {
     const parser = new ArgumentParser({
         prog: 'man',
-        description: 'Display manual pages for commands',
+        description: 'Display manual pages for commands (supports wildcards like *import*)',
         add_help: true
     });
 
     parser.add_argument('command', {
         nargs: '?',
-        help: 'Command to show manual for'
+        help: 'Command to show manual for (supports wildcards like *ls*, *import*)'
     });
 
     const parsed = context.parseArgsWithHelp(parser, args);
@@ -27,12 +28,20 @@ export function man(context: CommandContext, args: string[]): string {
         return getManIndex();
     }
 
-    const manPage = getManPage(command);
-    if (!manPage) {
-        return `No manual entry for ${command}`;
+    // Check if command contains wildcard patterns
+    const hasWildcards = command.includes('*') || command.includes('?') || command.includes('[');
+    
+    if (hasWildcards) {
+        // Handle wildcard pattern matching for commands
+        return handleWildcardMan(command);
+    } else {
+        // Single command - existing logic
+        const manPage = getManPage(command);
+        if (!manPage) {
+            return `No manual entry for ${command}`;
+        }
+        return manPage;
     }
-
-    return manPage;
 }
 
 /**
@@ -70,10 +79,49 @@ Use 'man <command>' to see detailed information about a command.`;
 }
 
 /**
- * Get manual page for a specific command
+ * Handle wildcard pattern matching for man commands
  */
-function getManPage(command: string): string | null {
-    const manPages: Record<string, string> = {
+function handleWildcardMan(pattern: string): string {
+    // Get all available commands from man pages
+    const allCommands = Object.keys(manPages);
+    
+    // Filter commands that match the pattern
+    const matchingCommands = allCommands.filter(cmd => 
+        micromatch.isMatch(cmd, pattern)
+    );
+    
+    if (matchingCommands.length === 0) {
+        return `No commands match pattern: ${pattern}`;
+    }
+    
+    if (matchingCommands.length === 1) {
+        // Single match - show the full manual page
+        const manPage = getManPage(matchingCommands[0]);
+        return manPage || `No manual entry for ${matchingCommands[0]}`;
+    }
+    
+    // Multiple matches - show list of matching commands with their descriptions
+    let result = `Commands matching pattern "${pattern}":\n\n`;
+    
+    for (const cmd of matchingCommands.sort()) {
+        const manPage = getManPage(cmd);
+        if (manPage) {
+            // Extract the description from the man page (first line after NAME section)
+            const lines = manPage.split('\n');
+            const nameLine = lines.find(line => line.trim().startsWith(cmd + ' -'));
+            const description = nameLine ? nameLine.replace(cmd + ' -', '').trim() : 'No description available';
+            result += `  ${cmd.padEnd(12)} ${description}\n`;
+        }
+    }
+    
+    result += `\nUse 'man <command>' to see detailed information about a specific command.`;
+    return result;
+}
+
+/**
+ * Manual pages database
+ */
+const manPages: Record<string, string> = {
         ls: `NAME
        ls - list directory contents
 
@@ -923,7 +971,14 @@ SYNOPSIS
 
 DESCRIPTION
        Display the manual page for COMMAND. If no COMMAND is given,
-       display a list of all available commands.
+       display a list of all available commands. Supports wildcards for
+       pattern matching multiple commands.
+
+WILDCARD SUPPORT
+       man supports glob patterns for matching multiple commands:
+       *     matches any sequence of characters
+       ?     matches any single character
+       [abc] matches any character in the brackets
 
 EXAMPLES
        man
@@ -935,9 +990,22 @@ EXAMPLES
        man grep
               Show manual for grep command
 
+       man *import*
+              Show manuals for all import-related commands
+
+       man *ls*
+              Show manuals for all commands containing "ls"
+
+       man ???
+              Show manuals for all 3-letter commands
+
 SEE ALSO
        help, --help flag on commands`
     };
 
+/**
+ * Get manual page for a specific command
+ */
+function getManPage(command: string): string | null {
     return manPages[command] || null;
 }

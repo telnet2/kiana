@@ -291,7 +291,17 @@ export class MemFS {
     importFile(realPath: string, memPath: string | null = null): MemFile {
         const content = fs.readFileSync(realPath, 'utf8');
         const fileName = memPath ?? path.basename(realPath);
-        return this.createFile(fileName, content);
+        
+        // Check if file already exists
+        const existingFile = this.resolvePath(fileName);
+        if (existingFile && existingFile.isFile()) {
+            // Update existing file
+            existingFile.write(content);
+            return existingFile;
+        } else {
+            // Create new file
+            return this.createFile(fileName, content);
+        }
     }
 
     exportFile(memPath: string, realPath: string): void {
