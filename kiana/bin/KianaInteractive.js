@@ -9,12 +9,14 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.KianaInteractive = void 0;
 const MemTools_1 = require("./MemTools");
 const Writer_1 = require("./Writer");
+const ai_1 = require("ai");
 const KianaAgentV6_1 = require("./KianaAgentV6");
 /**
  * Interactive Kiana mode for conversational shell interaction
  */
 class KianaInteractive {
     constructor(shell, options) {
+        this.agent = null;
         this.shell = shell;
         this.memtools = new MemTools_1.MemTools(shell.fs);
         this.writer = options?.writer || new Writer_1.StdoutWriter();
@@ -85,19 +87,45 @@ class KianaInteractive {
         this.state.messageCount++;
         // Add to session history
         this.shell.session.addCommand(`kiana: ${message}`);
-        // Format the instruction
-        const instruction = message.trim();
+        const prompt = message.trim();
         try {
-            // Call runKianaV6 with the message (supports ARK)
-            await (0, KianaAgentV6_1.runKianaV6)({
-                instruction,
-                systemPrompt: this.systemPrompt,
-                model: this.model,
-                maxRounds: this.maxRounds,
-                verbose: this.state.verbose,
-                arkConfig: this.arkConfig,
-                stream: false, // Use non-streaming for interactive mode
-            }, this.memtools, writer);
+            // Lazily create the agent once per interactive session
+            if (!this.agent) {
+                this.agent = await (0, KianaAgentV6_1.createKianaAgent)(this.memtools, {
+                    systemPrompt: this.systemPrompt,
+                    arkConfig: this.arkConfig,
+                    maxRounds: this.maxRounds,
+                    verbose: this.state.verbose,
+                });
+            }
+            const messages = [
+                { id: `u-${Date.now()}`, role: 'user', parts: [{ type: 'text', text: prompt }] },
+            ];
+            // Stream UI messages
+            const stream = await (0, ai_1.createAgentUIStream)({ agent: this.agent, messages });
+            for await (const m of stream) {
+                for (const part of m.parts) {
+                    if ((0, ai_1.isTextUIPart)(part)) {
+                        writer.write(part.text);
+                    }
+                    if ((0, ai_1.isToolOrDynamicToolUIPart)(part)) {
+                        const name = (0, ai_1.getToolOrDynamicToolName)(part);
+                        // On verbose, show states; otherwise show only final output
+                        if (this.state.verbose && (part.state === 'input-streaming' || part.state === 'input-available')) {
+                            writer.writeLine(`\n[tool ${name}] running…`);
+                        }
+                        if (part.state === 'output-available') {
+                            const out = typeof part.output === 'string'
+                                ? part.output
+                                : JSON.stringify(part.output);
+                            writer.writeLine(`\n[tool ${name}] ${out}`);
+                        }
+                        if (part.state === 'output-error') {
+                            writer.writeLine(`\n[tool ${name} error] ${part.errorText || 'unknown error'}`);
+                        }
+                    }
+                }
+            }
             writer.write('\n');
         }
         catch (err) {

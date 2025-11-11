@@ -8,7 +8,8 @@
 import { MemShell } from './MemShell';
 import { MemTools } from './MemTools';
 import { Writer, StdoutWriter } from './Writer';
-import { runKianaV6, ARKConfig, DEFAULT_SYSTEM_PROMPT } from './KianaAgentV6';
+import { createAgentUIStream, isTextUIPart, isToolOrDynamicToolUIPart, getToolOrDynamicToolName, type UIMessage } from 'ai';
+import { createKianaAgent, ARKConfig, DEFAULT_SYSTEM_PROMPT } from './KianaAgentV6';
 
 /**
  * Tracks state of an interactive Kiana session
@@ -32,6 +33,7 @@ export class KianaInteractive {
     private model: string;
     private maxRounds: number;
     private arkConfig: ARKConfig | undefined;
+    private agent: any | null = null;
 
     constructor(
         shell: MemShell,
@@ -119,25 +121,48 @@ export class KianaInteractive {
         // Add to session history
         this.shell.session.addCommand(`kiana: ${message}`);
 
-        // Format the instruction
-        const instruction = message.trim();
-
+        const prompt = message.trim();
         try {
-            // Call runKianaV6 with the message (supports ARK)
-            await runKianaV6(
-                {
-                    instruction,
+            // Lazily create the agent once per interactive session
+            if (!this.agent) {
+                this.agent = await createKianaAgent(this.memtools, {
                     systemPrompt: this.systemPrompt,
-                    model: this.model,
+                    arkConfig: this.arkConfig,
                     maxRounds: this.maxRounds,
                     verbose: this.state.verbose,
-                    arkConfig: this.arkConfig,
-                    stream: false, // Use non-streaming for interactive mode
-                },
-                this.memtools,
-                writer
-            );
+                });
+            }
 
+            const messages: UIMessage[] = [
+                { id: `u-${Date.now()}`, role: 'user', parts: [{ type: 'text', text: prompt }] } as any,
+            ];
+
+            // Stream UI messages
+            const stream: any = await createAgentUIStream({ agent: this.agent, messages });
+
+            for await (const m of stream as any) {
+                for (const part of (m as any).parts) {
+                    if (isTextUIPart(part)) {
+                        writer.write(part.text);
+                    }
+                    if (isToolOrDynamicToolUIPart(part)) {
+                        const name = getToolOrDynamicToolName(part);
+                        // On verbose, show states; otherwise show only final output
+                        if (this.state.verbose && (part.state === 'input-streaming' || part.state === 'input-available')) {
+                            writer.writeLine(`\n[tool ${name}] running…`);
+                        }
+                        if (part.state === 'output-available') {
+                            const out = typeof (part as any).output === 'string'
+                                ? (part as any).output
+                                : JSON.stringify((part as any).output);
+                            writer.writeLine(`\n[tool ${name}] ${out}`);
+                        }
+                        if (part.state === 'output-error') {
+                            writer.writeLine(`\n[tool ${name} error] ${(part as any).errorText || 'unknown error'}`);
+                        }
+                    }
+                }
+            }
             writer.write('\n');
         } catch (err: any) {
             writer.writeLine(`\nError: ${err.message}`);
