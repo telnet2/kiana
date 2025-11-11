@@ -93,6 +93,7 @@ Usage:
   memsh                              Start interactive shell
   memsh -c <command>                 Execute a single command
   memsh <script.sh>                  Execute commands from a script file
+  memsh chat [options] <prompt>      Stream chat via AI SDK UI messages
 
 Options:
   -h, --help                         Show this help message
@@ -126,6 +127,12 @@ Examples:
   # Run a script with ARK configuration
   $ memsh script.sh --ark-api-key your-key
 
+  # Chat locally (in-process agent)
+   memsh chat "explain the file layout"
+
+  # Chat remotely against the web app
+   memsh chat --server http://localhost:3000 --session <id> "hi"
+
 For more information, visit: https://github.com/telnet2/utileejs
 `);
 }
@@ -134,6 +141,21 @@ For more information, visit: https://github.com/telnet2/utileejs
  * Main entry point
  */
 function main(): void {
+  // subcommand: chat (UI message streaming)
+  const argv = process.argv.slice(2);
+  if (argv[0] === 'chat') {
+    import('./cli/chat').then(async (mod) => {
+      try {
+        await mod.runMemshChat(argv.slice(1));
+        process.exit(0);
+      } catch (err: any) {
+        console.error(err?.stack || String(err));
+        process.exit(1);
+      }
+    });
+    return;
+  }
+
   const options = parseCliArgs();
   const repl = new MemREPL(null, null, options.arkConfig);
 

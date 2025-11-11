@@ -50,7 +50,7 @@
     "scripts": {
         "build": "tsc -p tsconfig.json && npm run build:memsh",
         "build:memsh": "npm run compile:memsh && npm run copy:memsh",
-        "compile:memsh": "tsc src/memsh.ts src/MemREPL.ts src/KianaInteractive.ts src/KianaAgentV6.ts --outDir bin --target es2020 --module commonjs --moduleResolution node --skipLibCheck",
+        "compile:memsh": "tsc src/memsh.ts src/MemREPL.ts src/KianaInteractive.ts src/KianaAgentV6.ts src/cli/chat.ts --outDir bin --target es2020 --module commonjs --moduleResolution node --skipLibCheck",
         "copy:memsh": "sed 's|require(\"./MemREPL\")|require(\"./MemREPL.js\")|g' bin/memsh.js | sed 's|require(\"./KianaAgentV6\")|require(\"./KianaAgentV6.js\")|g' > bin/memsh && chmod +x bin/memsh && rm -f bin/memsh.js",
         "memsh": "npm run build:memsh && ./bin/memsh",
         "test": "npm run build && npx mocha lib/test/*.test.js"

@@ -24,8 +24,8 @@ export interface ARKConfig {
  * Options for running Kiana agent with AI SDK v6
  */
 export interface KianaOptionsV6 {
-  /** User instruction/task */
-  instruction: string;
+  /** User instruction/task (optional for Agent UI runs) */
+  instruction?: string;
   /** System prompt (defaults to DEFAULT_SYSTEM_PROMPT) */
   systemPrompt?: string;
   /** Model to use (defaults to gpt-4o-mini for OpenAI) */
@@ -128,11 +128,6 @@ export const createKianaAgent = async (
   memtools: MemTools,
   options: KianaOptionsV6
 ) => {
-  // Validate required options
-  if (!options.instruction) {
-    throw new Error('Instruction is required');
-  }
-
   const verbose = options.verbose || false;
   const systemPrompt = options.systemPrompt || DEFAULT_SYSTEM_PROMPT;
   const maxRounds = options.maxRounds || 20;
@@ -250,18 +245,20 @@ export async function runKianaV6(
       console.log(`[Kiana] Instruction: ${options.instruction}`);
     }
 
+    // Derive instruction for non-UI runs if missing
+    const instruction = options.instruction ?? 'Start';
     // Execute based on streaming preference
     if (options.stream) {
       return await runKianaStreaming(
         agent, 
-        options.instruction, 
+        instruction, 
         writer, 
         options.verbose || false
       );
     } else {
       return await runKianaRegular(
         agent, 
-        options.instruction, 
+        instruction, 
         writer, 
         options.verbose || false
       );

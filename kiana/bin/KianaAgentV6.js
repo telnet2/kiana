@@ -94,10 +94,6 @@ const createMemfsTool = (memtools) => (0, ai_1.tool)({
  * Create Kiana agent with AI SDK v6
  */
 const createKianaAgent = async (memtools, options) => {
-    // Validate required options
-    if (!options.instruction) {
-        throw new Error('Instruction is required');
-    }
     const verbose = options.verbose || false;
     const systemPrompt = options.systemPrompt || exports.DEFAULT_SYSTEM_PROMPT;
     const maxRounds = options.maxRounds || 20;
@@ -185,12 +181,14 @@ async function runKianaV6(options, memtools, writer) {
             console.log('[Kiana] Agent created successfully');
             console.log(`[Kiana] Instruction: ${options.instruction}`);
         }
+        // Derive instruction for non-UI runs if missing
+        const instruction = options.instruction ?? 'Start';
         // Execute based on streaming preference
         if (options.stream) {
-            return await runKianaStreaming(agent, options.instruction, writer, options.verbose || false);
+            return await runKianaStreaming(agent, instruction, writer, options.verbose || false);
         }
         else {
-            return await runKianaRegular(agent, options.instruction, writer, options.verbose || false);
+            return await runKianaRegular(agent, instruction, writer, options.verbose || false);
         }
     }
     catch (error) {
