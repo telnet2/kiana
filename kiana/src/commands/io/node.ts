@@ -8,8 +8,13 @@ import { CommandContext } from '../types';
 export function node(context: CommandContext, args: string[]): string {
     const parser = new ArgumentParser({
         prog: 'node',
-        description: 'Execute JavaScript file',
+        description: 'Execute JavaScript file or code',
         add_help: true
+    });
+
+    parser.add_argument('-e', '--eval', {
+        metavar: 'CODE',
+        help: 'Evaluate and execute JavaScript code'
     });
 
     parser.add_argument('--timeout', {
@@ -25,14 +30,15 @@ export function node(context: CommandContext, args: string[]): string {
         action: 'store_true',
         help: 'Allow WebAssembly in scripts (default: false)'
     });
-    parser.add_argument('-e', '--env', {
+    parser.add_argument('--env', {
         action: 'append',
         dest: 'env_vars',
         metavar: 'KEY=VALUE',
         help: 'Set environment variable (can be used multiple times)'
     });
     parser.add_argument('script', {
-        help: 'JavaScript file to execute'
+        nargs: '?',
+        help: 'JavaScript file to execute (not needed with -e)'
     });
     parser.add_argument('args', {
         nargs: '*',
@@ -42,11 +48,21 @@ export function node(context: CommandContext, args: string[]): string {
     const parsed = context.parseArgsWithHelp(parser, args);
     if (typeof parsed === 'string') return parsed; // Help text
 
+    // Validate that either -e or script is provided
+    if (!parsed.eval && !parsed.script) {
+        throw new Error('node: either -e <code> or a script file must be provided');
+    }
+
+    // Validate that both are not provided
+    if (parsed.eval && parsed.script) {
+        throw new Error('node: cannot specify both -e and a script file');
+    }
+
     // Parse environment variables from session first, then CLI overrides
     const env: Record<string, string> = {
         ...context.session.getAllEnv()
     };
-    
+
     if (parsed.env_vars) {
         for (const envVar of parsed.env_vars) {
             const [key, ...valueParts] = envVar.split('=');
@@ -72,16 +88,30 @@ export function node(context: CommandContext, args: string[]): string {
         // Set working directory from session before running script
         const sessionCwd = context.session.getCwd();
         const previousCwd = context.fs.getCurrentDirectory();
-        
+
         try {
             context.fs.changeDirectory(sessionCwd);
-            
-            const result = context.jsEngine.runScript(parsed.script, {
-                positionalArgs: parsed.args,
-                flagArgs: {},
-                env,
-                vmOptions,
-            });
+
+            let result;
+            if (parsed.eval) {
+                // Run inline code
+                result = context.jsEngine.runScript(parsed.eval, {
+                    positionalArgs: parsed.args || [],
+                    flagArgs: {},
+                    env,
+                    vmOptions,
+                    isCode: true,
+                });
+            } else {
+                // Run script file
+                result = context.jsEngine.runScript(parsed.script, {
+                    positionalArgs: parsed.args || [],
+                    flagArgs: {},
+                    env,
+                    vmOptions,
+                    isCode: false,
+                });
+            }
             return result.output;
         } finally {
             // Restore previous working directory

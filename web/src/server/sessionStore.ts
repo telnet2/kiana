@@ -1,5 +1,4 @@
-import { MemTools } from '@byted/kiana/src/MemTools';
-import { DEFAULT_SYSTEM_PROMPT } from '@byted/kiana/src/KianaAgentV6';
+import { MemTools, DEFAULT_SYSTEM_PROMPT } from '@byted/kiana';
 
 export type SessionRecord = {
   id: string;

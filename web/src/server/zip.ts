@@ -1,5 +1,5 @@
 import JSZip from 'jszip';
-import { MemDirectory, MemFile } from '@byted/kiana/src/MemFS';
+import { MemDirectory, MemFile } from '@byted/kiana';
 
 export async function zipMemDir(root: MemDirectory): Promise<Buffer> {
   const zip = new JSZip();

@@ -360,19 +360,97 @@ export class MemShell {
      * Execute a command with redirections
      */
     execWithRedirections(commandTokens: string[], stdin: string | null = null, redirections: Redirection[] = []): string {
-        // Find HEREDOC redirection
-        const heredocRedirect = redirections.find(r => r.type === '<<');
+        // Find input redirection (<)
+        const inputRedirect = redirections.find(r => r.type === '<');
         let actualStdin = stdin;
 
-        // If there's a HEREDOC, it becomes the stdin
+        // If there's an input redirection, read the file and use it as stdin
+        if (inputRedirect && 'target' in inputRedirect) {
+            const node = this.fs.resolvePath(inputRedirect.target);
+            if (!node) {
+                throw new Error(`${inputRedirect.target}: No such file or directory`);
+            }
+            if (!node.isFile()) {
+                throw new Error(`${inputRedirect.target}: Is a directory`);
+            }
+            actualStdin = node.read();
+        }
+
+        // Find HEREDOC redirection (takes precedence over input redirection if both exist)
+        const heredocRedirect = redirections.find(r => r.type === '<<');
         if (heredocRedirect && 'delimiter' in heredocRedirect) {
             // For HEREDOC in interactive mode, content will be provided separately
             // This is just marking that we expect HEREDOC input
             actualStdin = stdin;
         }
 
-        // Execute the command
-        let output = this.execSingle(commandTokens, actualStdin);
+        // Check if there's any stderr redirection
+        const hasStderrRedirection = redirections.some(r =>
+            r.type === '2>' || r.type === '2>>' || r.type === '&>' || r.type === '>&'
+        );
+
+        // Create stderr buffer for error redirection
+        const stderrBuffer: string[] = [];
+
+        // Execute with error handling based on whether stderr redirection is present
+        let output = '';
+        try {
+            output = this.execSingleWithStderr(commandTokens, actualStdin, stderrBuffer);
+        } catch (err: any) {
+            if (hasStderrRedirection) {
+                // If there's stderr redirection, capture the error message instead of throwing
+                const errorMessage = err.message || String(err);
+                stderrBuffer.push(errorMessage);
+                output = '';
+            } else {
+                // If no stderr redirection, throw as usual (backward compatible)
+                throw err;
+            }
+        }
+
+        // Get stderr output
+        const stderrOutput = stderrBuffer.join('\n');
+
+        // Handle error redirections first (2>, 2>>, &>)
+        const errorRedirect = redirections.find(r => r.type === '2>' || r.type === '2>>' || r.type === '&>');
+        if (errorRedirect && 'target' in errorRedirect) {
+            const node = this.fs.resolvePath(errorRedirect.target);
+            if (node && !node.isFile()) {
+                throw new Error(`${errorRedirect.target}: Is a directory`);
+            }
+            if (errorRedirect.type === '2>' || errorRedirect.type === '&>') {
+                // Overwrite
+                if (node && node.isFile()) {
+                    node.write(stderrOutput);
+                } else {
+                    this.fs.createFile(errorRedirect.target, stderrOutput);
+                }
+            } else if (errorRedirect.type === '2>>') {
+                // Append
+                if (node && node.isFile()) {
+                    const existingContent = node.read();
+                    if (existingContent && existingContent.length > 0) {
+                        node.append('\n' + stderrOutput);
+                    } else {
+                        node.append(stderrOutput);
+                    }
+                } else {
+                    this.fs.createFile(errorRedirect.target, stderrOutput);
+                }
+            }
+        }
+
+        // Handle 2>&1 (redirect stderr to stdout)
+        const hasRedirectStderrToStdout = redirections.some(r => {
+            if ('target' in r && r.target === '&1') {
+                return r.type === '2>';
+            }
+            return false;
+        });
+
+        if (hasRedirectStderrToStdout) {
+            output = output + (output ? '\n' : '') + stderrOutput;
+        }
 
         // Handle output redirections
         for (const redir of redirections) {
@@ -410,6 +488,45 @@ export class MemShell {
         }
 
         return output;
+    }
+
+    /**
+     * Execute a single command with stderr support
+     */
+    private execSingleWithStderr(commandTokens: string[], stdin: string | null = null, stderr: string[]): string {
+        if (!commandTokens || commandTokens.length === 0) {
+            return '';
+        }
+
+        const command = commandTokens[0];
+        let args = commandTokens.slice(1);
+
+        // Expand wildcards in arguments (use current working directory from fs)
+        const cwd = this.fs.getCurrentDirectory();
+        args = this.expandWildcards(args, cwd);
+
+        // Create command context with stderr support
+        const context: CommandContext = {
+            fs: this.fs,
+            jsEngine: this.jsEngine,
+            session: this.session,
+            stdin,
+            stderr: stderr,
+            parseArgsWithHelp: this.parseArgsWithHelp.bind(this),
+            expandWildcards: this.expandWildcards.bind(this),
+            getAllFilesRecursive: this.getAllFilesRecursive.bind(this),
+        };
+
+        // Try COMMANDS registry first
+        if (COMMANDS[command]) {
+            const def = COMMANDS[command];
+            if (def.acceptsStdin && stdin !== null && stdin !== undefined) {
+                return def.execute(context, args, stdin);
+            }
+            return def.execute(context, args);
+        }
+
+        throw new Error(`${command}: command not found`);
     }
 
     /**

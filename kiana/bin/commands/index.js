@@ -22,10 +22,18 @@ const diff_1 = require("./text/diff");
 const patch_1 = require("./text/patch");
 const jqn_1 = require("./text/jqn");
 const wc_1 = require("./text/wc");
+const head_1 = require("./text/head");
+const tail_1 = require("./text/tail");
+const cut_1 = require("./text/cut");
+const sort_1 = require("./text/sort");
+const uniq_1 = require("./text/uniq");
 // util commands
 const date_1 = require("./util/date");
 const man_1 = require("./util/man");
 const find_1 = require("./util/find");
+const file_1 = require("./util/file");
+const basename_1 = require("./util/basename");
+const dirname_1 = require("./util/dirname");
 // io commands
 const import_1 = require("./io/import");
 const export_1 = require("./io/export");
@@ -54,10 +62,18 @@ exports.COMMANDS = {
     patch: { execute: patch_1.patch, acceptsStdin: true },
     jqn: { execute: jqn_1.jqn, acceptsStdin: true },
     wc: { execute: wc_1.wc, acceptsStdin: true },
+    head: { execute: head_1.head, acceptsStdin: true },
+    tail: { execute: tail_1.tail, acceptsStdin: true },
+    cut: { execute: cut_1.cut, acceptsStdin: true },
+    sort: { execute: sort_1.sort, acceptsStdin: true },
+    uniq: { execute: uniq_1.uniq, acceptsStdin: true },
     // util commands
     date: { execute: date_1.date },
     man: { execute: man_1.man },
     find: { execute: find_1.find },
+    file: { execute: file_1.file },
+    basename: { execute: basename_1.basename },
+    dirname: { execute: dirname_1.dirname },
     // io commands
     import: { execute: import_1.importCommand },
     export: { execute: export_1.exportCommand },

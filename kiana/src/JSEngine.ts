@@ -9,6 +9,7 @@ export interface RunScriptOptions {
     flagArgs?: Record<string, string | number | boolean>;
     env?: Record<string, string>;
     vmOptions?: Partial<NodeVMOptions & { timeout?: number }>;
+    isCode?: boolean; // If true, scriptPath is treated as inline code instead of a file path
 }
 
 export interface ScriptExecutionResult {
@@ -34,20 +35,32 @@ export class JSEngine {
             flagArgs = {},
             env = {},
             vmOptions = {},
+            isCode = false,
         } = options;
 
-        const scriptNode = this.fs.resolvePath(scriptPath);
-        if (!scriptNode) {
-            throw new Error(`cannot find module '${scriptPath}'`);
-        }
-        if (!scriptNode.isFile()) {
-            throw new Error(`'${scriptPath}' is a directory`);
+        let scriptContent: string;
+        let scriptFullPath: string;
+
+        if (isCode) {
+            // Treat scriptPath as inline code
+            scriptContent = scriptPath;
+            scriptFullPath = '<eval>';
+        } else {
+            // Load from file
+            const scriptNode = this.fs.resolvePath(scriptPath);
+            if (!scriptNode) {
+                throw new Error(`cannot find module '${scriptPath}'`);
+            }
+            if (!scriptNode.isFile()) {
+                throw new Error(`'${scriptPath}' is a directory`);
+            }
+
+            scriptContent = scriptNode.read();
+            scriptFullPath = scriptNode.getPath();
         }
 
         this.moduleCache.clear();
 
-        const scriptFullPath = scriptNode.getPath();
-        const scriptDir = this.dirname(scriptFullPath);
         const argv = this.buildArgv(scriptFullPath, positionalArgs, flagArgs);
         const consoleBuffer: string[] = [];
 
@@ -103,8 +116,8 @@ export class JSEngine {
         }
 
         vm = new NodeVM(vmConfig);
-        
-        const wrappedCode = this.wrapCodeWithCustomRequire(scriptNode.read(), scriptFullPath);
+
+        const wrappedCode = this.wrapCodeWithCustomRequire(scriptContent, scriptFullPath);
         const moduleExports = vm.run(wrappedCode, scriptFullPath);
 
         return {

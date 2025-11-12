@@ -5,10 +5,10 @@ export interface PipelineSegment {
     command: string[];
 }
 
-export type RedirectionType = '>' | '>>' | '<' | '2>' | '&>' | '>&' | '<<';
+export type RedirectionType = '>' | '>>' | '<' | '2>' | '2>>' | '&>' | '>&' | '<<';
 
 export interface StandardRedirection {
-    type: '>' | '>>' | '<' | '2>' | '&>' | '>&';
+    type: '>' | '>>' | '<' | '2>' | '2>>' | '&>' | '>&';
     target: string;
 }
 
@@ -126,8 +126,14 @@ export function tokenize(commandLine: string): string[] {
                     tokens.push(current);
                     current = '';
                 }
-                tokens.push('2>');
-                i += 1;
+                // Check for 2>> (append stderr)
+                if (i + 2 < commandLine.length && commandLine[i + 2] === '>') {
+                    tokens.push('2>>');
+                    i += 2;
+                } else {
+                    tokens.push('2>');
+                    i += 1;
+                }
                 continue;
             }
 
@@ -226,10 +232,10 @@ export function parseRedirections(tokens: string[]): { command: string[]; redire
     for (let i = 0; i < tokens.length; i += 1) {
         const token = tokens[i];
 
-        if (token === '>' || token === '>>' || token === '<' || token === '2>' || token === '&>' || token === '>&') {
+        if (token === '>' || token === '>>' || token === '<' || token === '2>' || token === '2>>' || token === '&>' || token === '>&') {
             if (i + 1 < tokens.length) {
                 redirections.push({
-                    type: token,
+                    type: token as '>' | '>>' | '<' | '2>' | '2>>' | '&>' | '>&',
                     target: tokens[i + 1],
                 });
                 i += 1;

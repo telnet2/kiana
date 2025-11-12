@@ -3,6 +3,7 @@
     "version": "0.0.1",
     "description": "Kiana MemFS-based LLM agent",
     "main": "index.js",
+    "types": "index.d.ts",
     "bin": {
         "memsh": "./bin/memsh"
     },
@@ -53,6 +54,7 @@
         "compile:memsh": "tsc src/memsh.ts src/MemREPL.ts src/KianaInteractive.ts src/KianaAgentV6.ts src/cli/chat.ts --outDir bin --target es2020 --module commonjs --moduleResolution node --skipLibCheck",
         "copy:memsh": "sed 's|require(\"./MemREPL\")|require(\"./MemREPL.js\")|g' bin/memsh.js | sed 's|require(\"./KianaAgentV6\")|require(\"./KianaAgentV6.js\")|g' > bin/memsh && chmod +x bin/memsh && rm -f bin/memsh.js",
         "memsh": "npm run build:memsh && ./bin/memsh",
-        "test": "npm run build && npx mocha lib/test/*.test.js"
+        "clean": "rm -rf lib bin",
+        "test": "npm run build && npx mocha --require ts-node/register test/**/*.test.ts"
     }
 }

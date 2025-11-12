@@ -11,17 +11,27 @@ class JSEngine {
         this.fsAdapter = new MemFSAdapter_1.MemFSAdapter(memfs);
     }
     runScript(scriptPath, options = {}) {
-        const { positionalArgs = [], flagArgs = {}, env = {}, vmOptions = {}, } = options;
-        const scriptNode = this.fs.resolvePath(scriptPath);
-        if (!scriptNode) {
-            throw new Error(`cannot find module '${scriptPath}'`);
+        const { positionalArgs = [], flagArgs = {}, env = {}, vmOptions = {}, isCode = false, } = options;
+        let scriptContent;
+        let scriptFullPath;
+        if (isCode) {
+            // Treat scriptPath as inline code
+            scriptContent = scriptPath;
+            scriptFullPath = '<eval>';
         }
-        if (!scriptNode.isFile()) {
-            throw new Error(`'${scriptPath}' is a directory`);
+        else {
+            // Load from file
+            const scriptNode = this.fs.resolvePath(scriptPath);
+            if (!scriptNode) {
+                throw new Error(`cannot find module '${scriptPath}'`);
+            }
+            if (!scriptNode.isFile()) {
+                throw new Error(`'${scriptPath}' is a directory`);
+            }
+            scriptContent = scriptNode.read();
+            scriptFullPath = scriptNode.getPath();
         }
         this.moduleCache.clear();
-        const scriptFullPath = scriptNode.getPath();
-        const scriptDir = this.dirname(scriptFullPath);
         const argv = this.buildArgv(scriptFullPath, positionalArgs, flagArgs);
         const consoleBuffer = [];
         const consoleProxy = {
@@ -70,7 +80,7 @@ class JSEngine {
             vmConfig.timeout = vmOptions.timeout;
         }
         vm = new vm2_1.NodeVM(vmConfig);
-        const wrappedCode = this.wrapCodeWithCustomRequire(scriptNode.read(), scriptFullPath);
+        const wrappedCode = this.wrapCodeWithCustomRequire(scriptContent, scriptFullPath);
         const moduleExports = vm.run(wrappedCode, scriptFullPath);
         return {
             output: consoleBuffer.join('\n'),

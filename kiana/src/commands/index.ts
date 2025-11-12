@@ -24,11 +24,22 @@ import { diff } from './text/diff';
 import { patch } from './text/patch';
 import { jqn } from './text/jqn';
 import { wc } from './text/wc';
+import { head } from './text/head';
+import { tail } from './text/tail';
+import { cut } from './text/cut';
+import { sort } from './text/sort';
+import { uniq } from './text/uniq';
+import { tr } from './text/tr';
 
 // util commands
 import { date } from './util/date';
 import { man } from './util/man';
 import { find } from './util/find';
+import { file } from './util/file';
+import { basename } from './util/basename';
+import { dirname } from './util/dirname';
+import { tee } from './util/tee';
+import { xargs } from './util/xargs';
 
 // io commands
 import { importCommand } from './io/import';
@@ -63,11 +74,22 @@ export const COMMANDS: Record<string, CommandDefinition> = {
     patch: { execute: patch, acceptsStdin: true },
     jqn: { execute: jqn, acceptsStdin: true },
     wc: { execute: wc, acceptsStdin: true },
+    head: { execute: head, acceptsStdin: true },
+    tail: { execute: tail, acceptsStdin: true },
+    cut: { execute: cut, acceptsStdin: true },
+    sort: { execute: sort, acceptsStdin: true },
+    uniq: { execute: uniq, acceptsStdin: true },
+    tr: { execute: tr, acceptsStdin: true },
 
     // util commands
     date: { execute: date },
     man: { execute: man },
     find: { execute: find },
+    file: { execute: file },
+    basename: { execute: basename },
+    dirname: { execute: dirname },
+    tee: { execute: tee, acceptsStdin: true },
+    xargs: { execute: xargs, acceptsStdin: true },
 
     // io commands
     import: { execute: importCommand },

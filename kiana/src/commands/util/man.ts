@@ -68,10 +68,18 @@ Available commands:
   patch      - apply a diff file to an original
   jqn        - process JSON with jq syntax
   wc         - count lines, words, and characters
+  head       - output the first part of files
+  tail       - output the last part of files
+  cut        - remove sections from each line of files
+  sort       - sort lines of text files
+  uniq       - report or filter out repeated lines
+  file       - determine file type
+  basename   - strip directory and suffix from filenames
+  dirname    - strip last component from file path
   write      - write text to a file
   import     - import file or directory from real filesystem
   export     - export file or directory to real filesystem
-  node       - execute JavaScript file
+  node       - execute JavaScript file or code
   curl       - command-line tool for transferring data using URLs
   kiana      - LLM agent with memshell access
 
@@ -787,22 +795,24 @@ SEE ALSO
        import, cp`,
 
         node: `NAME
-       node - execute JavaScript file
+       node - execute JavaScript file or code
 
 SYNOPSIS
-       node [OPTION]... SCRIPT [ARGS]...
+       node [OPTION]... (-e CODE | SCRIPT [ARGS]...)
 
 DESCRIPTION
-       Execute JavaScript file in sandboxed environment with MemFS access.
+       Execute JavaScript file or code in sandboxed environment with MemFS access.
 
 OPTIONS
+       -e, --eval CODE
+              Evaluate and execute JavaScript code directly
        --timeout=MS
               Set execution timeout in milliseconds
        --allow-eval
               Allow eval() in scripts (default: false)
        --allow-wasm
               Allow WebAssembly (default: false)
-       -e KEY=VALUE, --env KEY=VALUE
+       --env KEY=VALUE
               Set environment variable
        -h, --help
               Display this help and exit
@@ -811,14 +821,282 @@ EXAMPLES
        node script.js
               Execute script.js
 
+       node -e "console.log(1+1)"
+              Execute inline code
+
        node --timeout=5000 script.js
               Execute with 5 second timeout
 
-       node -e NODE_ENV=production app.js
+       node --env NODE_ENV=production app.js
               Set environment variable
 
 SEE ALSO
        write, cat`,
+
+        head: `NAME
+       head - output the first part of files
+
+SYNOPSIS
+       head [OPTION]... [FILE]...
+
+DESCRIPTION
+       Print the first 10 lines of each FILE to standard output. With more than
+       one FILE, precede each with a header giving the file name. If no FILE
+       is given, read standard input.
+
+OPTIONS
+       -n, --lines NUM
+              Print first NUM lines (default: 10)
+       -c, --bytes NUM
+              Print first NUM bytes
+       -h, --help
+              Display this help and exit
+
+EXAMPLES
+       head file.txt
+              Print first 10 lines of file.txt
+
+       head -n 5 file.txt
+              Print first 5 lines
+
+       head -c 100 file.txt
+              Print first 100 bytes
+
+       cat file.txt | head -n 3
+              Print first 3 lines from stdin
+
+SEE ALSO
+       tail, cat, sed`,
+
+        tail: `NAME
+       tail - output the last part of files
+
+SYNOPSIS
+       tail [OPTION]... [FILE]...
+
+DESCRIPTION
+       Print the last 10 lines of each FILE to standard output. With more than
+       one FILE, precede each with a header giving the file name. If no FILE
+       is given, read standard input.
+
+OPTIONS
+       -n, --lines NUM
+              Print last NUM lines (default: 10)
+       -c, --bytes NUM
+              Print last NUM bytes
+       -h, --help
+              Display this help and exit
+
+EXAMPLES
+       tail file.txt
+              Print last 10 lines of file.txt
+
+       tail -n 5 file.txt
+              Print last 5 lines
+
+       tail -c 50 file.txt
+              Print last 50 bytes
+
+       cat file.txt | tail -n 2
+              Print last 2 lines from stdin
+
+SEE ALSO
+       head, cat, sed`,
+
+        cut: `NAME
+       cut - remove sections from each line of files
+
+SYNOPSIS
+       cut [OPTION]... [FILE]...
+
+DESCRIPTION
+       Print selected parts of lines from each FILE to standard output.
+       With no FILE, read standard input.
+
+OPTIONS
+       -f, --fields FIELDS
+              Select only these fields (e.g., 1,3 or 1-3)
+       -d, --delimiter DELIM
+              Use DELIM instead of TAB for field delimiter
+       -c, --characters CHARS
+              Select only these characters (e.g., 1,3 or 1-10)
+       -h, --help
+              Display this help and exit
+
+EXAMPLES
+       cut -f 1,3 data.txt
+              Cut fields 1 and 3
+
+       cut -d: -f1 /etc/passwd
+              Extract usernames from passwd file
+
+       cut -c 1-10 file.txt
+              Extract first 10 characters
+
+       echo "a:b:c" | cut -d: -f2
+              Extract middle field from stdin
+
+SEE ALSO
+       grep, sed, awk`,
+
+        sort: `NAME
+       sort - sort lines of text files
+
+SYNOPSIS
+       sort [OPTION]... [FILE]...
+
+DESCRIPTION
+       Sort lines of text. With no FILE, read standard input.
+
+OPTIONS
+       -r, --reverse
+              Reverse the result of comparisons
+       -n, --numeric-sort
+              Compare according to string numerical value
+       -u, --unique
+              Output only the first of an equal run
+       -i, --ignore-case
+              Ignore case differences when comparing
+       -h, --help
+              Display this help and exit
+
+EXAMPLES
+       sort file.txt
+              Sort lines in file.txt
+
+       sort -r file.txt
+              Sort in reverse order
+
+       sort -n numbers.txt
+              Sort numerically
+
+       cat file.txt | sort -u
+              Sort and remove duplicates from stdin
+
+SEE ALSO
+       uniq, grep, sed`,
+
+        uniq: `NAME
+       uniq - report or filter out repeated lines in a file
+
+SYNOPSIS
+       uniq [OPTION]... [INPUT_FILE]
+
+DESCRIPTION
+       Filter adjacent matching lines from INPUT_FILE, writing to standard output.
+       If no INPUT_FILE is given, read standard input. Note: uniq does not detect
+       repeated lines unless they are adjacent.
+
+OPTIONS
+       -c, --count
+              Prefix lines with the number of occurrences
+       -d, --repeated
+              Only output lines that are repeated in the input
+       -u, --unique
+              Only output lines that are not repeated in the input
+       -i, --ignore-case
+              Ignore case differences
+       -f, --skip-fields NUM
+              Skip first NUM fields when comparing
+       -h, --help
+              Display this help and exit
+
+EXAMPLES
+       uniq file.txt
+              Filter repeated adjacent lines
+
+       uniq -c file.txt
+              Count occurrences of each line
+
+       uniq -d file.txt
+              Show only repeated lines
+
+       sort file.txt | uniq
+              Sort then filter (recommended for all duplicates)
+
+       cat file.txt | uniq -u
+              Show only unique lines from stdin
+
+SEE ALSO
+       sort, grep, sed`,
+
+        file: `NAME
+       file - determine file type
+
+SYNOPSIS
+       file [OPTION]... FILE...
+
+DESCRIPTION
+       Determine the type of each FILE. File tests the first few bytes of a file
+       and prints a description of the file type.
+
+OPTIONS
+       -b, --brief
+              Do not prepend filenames to output lines
+       -h, --help
+              Display this help and exit
+
+EXAMPLES
+       file test.txt
+              Show file type
+
+       file *.js
+              Show type of all JavaScript files
+
+       file -b test.json
+              Show type without filename
+
+SEE ALSO
+       ls, cat`,
+
+        basename: `NAME
+       basename - strip directory and suffix from filenames
+
+SYNOPSIS
+       basename NAME [SUFFIX]
+
+DESCRIPTION
+       Print NAME with any leading directory components removed. If SUFFIX is
+       specified, also remove the trailing SUFFIX.
+
+EXAMPLES
+       basename /tmp/test.txt
+              Output: test.txt
+
+       basename /tmp/test.txt .txt
+              Output: test
+
+       basename document.pdf
+              Output: document.pdf
+
+SEE ALSO
+       dirname, ls`,
+
+        dirname: `NAME
+       dirname - strip last component from file path(s)
+
+SYNOPSIS
+       dirname PATH...
+
+DESCRIPTION
+       Print the directory portions of each PATH. For each PATH operand,
+       the basename of the path is removed.
+
+EXAMPLES
+       dirname /tmp/test.txt
+              Output: /tmp
+
+       dirname /tmp/
+              Output: /tmp
+
+       dirname test.txt
+              Output: .
+
+       dirname /
+              Output: .
+
+SEE ALSO
+       basename, ls`,
 
         curl: `NAME
        curl - command-line tool for transferring data using URLs

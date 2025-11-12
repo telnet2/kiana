@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { getSessionStore } from '@/server/sessionStore';
-import { createKianaAgent, DEFAULT_SYSTEM_PROMPT } from '@byted/kiana/src/KianaAgentV6';
+import { createKianaAgent, DEFAULT_SYSTEM_PROMPT } from '@byted/kiana';
 import { createAgentUIStreamResponse, type UIMessage } from 'ai';
 
 export const runtime = 'nodejs';
@@ -22,6 +22,8 @@ export async function POST(req: NextRequest) {
     id?: string;
     messages?: UIMessage[];
     message?: string;
+    systemPrompt?: string;
+    maxRounds?: number;
   };
   const effectiveSessionId = sessionId || id;
   if (!effectiveSessionId) return new Response('Missing sessionId', { status: 400 });

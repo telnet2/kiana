@@ -7,7 +7,7 @@ import { useHorizontalResize, useVerticalResize } from '@/components/Resizable';
 
 export default function Page() {
   const [activeSession, setActiveSession] = useState<string | null>(null);
-  const { ref, width, Divider: VDivider } = useHorizontalResize(320);
+  const { ref, width, Divider: VDivider } = useHorizontalResize(500);
   const { height, Divider: HDivider } = useVerticalResize(220);
 
   // On first load: use most recent session if any; otherwise create one

@@ -19,6 +19,8 @@ export interface CommandContext {
     session: MemSession;
     /** Standard input (if piped) */
     stdin: string | null;
+    /** Standard error output buffer */
+    stderr?: string[];
     /** Helper to parse args with help support */
     parseArgsWithHelp: (parser: ArgumentParser, args: string[]) => any;
     /** Expand wildcard patterns in arguments */
