@@ -86,8 +86,15 @@ function tokenize(commandLine) {
                     tokens.push(current);
                     current = '';
                 }
-                tokens.push('2>');
-                i += 1;
+                // Check for 2>> (append stderr)
+                if (i + 2 < commandLine.length && commandLine[i + 2] === '>') {
+                    tokens.push('2>>');
+                    i += 2;
+                }
+                else {
+                    tokens.push('2>');
+                    i += 1;
+                }
                 continue;
             }
             if (char === '&' && i + 1 < commandLine.length) {
@@ -177,7 +184,7 @@ function parseRedirections(tokens) {
     const redirections = [];
     for (let i = 0; i < tokens.length; i += 1) {
         const token = tokens[i];
-        if (token === '>' || token === '>>' || token === '<' || token === '2>' || token === '&>' || token === '>&') {
+        if (token === '>' || token === '>>' || token === '<' || token === '2>' || token === '2>>' || token === '&>' || token === '>&') {
             if (i + 1 < tokens.length) {
                 redirections.push({
                     type: token,

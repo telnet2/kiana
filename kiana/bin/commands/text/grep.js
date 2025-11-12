@@ -59,6 +59,10 @@ function grep(context, args, stdin = null) {
         metavar: 'NUM',
         help: 'Print NUM lines of context'
     });
+    parser.add_argument('-R', '--recursive', {
+        action: 'store_true',
+        help: 'Search directories recursively'
+    });
     parser.add_argument('rest', {
         nargs: '*',
         help: 'PATTERN and FILES (if -e not used)'
@@ -86,6 +90,7 @@ function grep(context, args, stdin = null) {
     const afterContext = parsed.context || parsed.after_context;
     const beforeContext = parsed.context || parsed.before_context;
     const suppressFilename = parsed.no_filename;
+    const recursiveMode = parsed.recursive;
     // Helper function to search lines and return matches with context
     const searchLines = (lines, filename = null) => {
         const results = [];
@@ -146,7 +151,33 @@ function grep(context, args, stdin = null) {
         throw new Error('grep: missing file operand');
     }
     const allResults = [];
-    for (const pathStr of files) {
+    // Collect all files to process (handle -R for recursive)
+    let filesToProcess = [];
+    if (recursiveMode) {
+        // Expand directories recursively
+        for (const pathStr of files) {
+            const node = context.fs.resolvePath(pathStr);
+            if (!node) {
+                allResults.push(`grep: ${pathStr}: No such file or directory`);
+                continue;
+            }
+            if (node.isFile()) {
+                filesToProcess.push(pathStr);
+            }
+            else if (node.isDirectory()) {
+                // Get all files recursively from this directory
+                const recursiveFiles = context.getAllFilesRecursive(pathStr);
+                filesToProcess.push(...recursiveFiles.map(f => {
+                    const basePath = pathStr.endsWith('/') ? pathStr : pathStr + '/';
+                    return basePath + f;
+                }));
+            }
+        }
+    }
+    else {
+        filesToProcess = files;
+    }
+    for (const pathStr of filesToProcess) {
         const node = context.fs.resolvePath(pathStr);
         if (!node) {
             allResults.push(`grep: ${pathStr}: No such file or directory`);
@@ -158,8 +189,8 @@ function grep(context, args, stdin = null) {
         }
         const content = node.read();
         const lines = content.split('\n');
-        // Determine if we should show filename (multiple files, unless -h)
-        const showFilename = files.length > 1 && !suppressFilename;
+        // Determine if we should show filename (multiple files or recursive mode, unless -h)
+        const showFilename = (filesToProcess.length > 1 || recursiveMode) && !suppressFilename;
         const filename = showFilename ? pathStr : null;
         const results = searchLines(lines, filename);
         if (results.length > 0) {

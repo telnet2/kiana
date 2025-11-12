@@ -27,6 +27,7 @@ const tail_1 = require("./text/tail");
 const cut_1 = require("./text/cut");
 const sort_1 = require("./text/sort");
 const uniq_1 = require("./text/uniq");
+const tr_1 = require("./text/tr");
 // util commands
 const date_1 = require("./util/date");
 const man_1 = require("./util/man");
@@ -34,6 +35,8 @@ const find_1 = require("./util/find");
 const file_1 = require("./util/file");
 const basename_1 = require("./util/basename");
 const dirname_1 = require("./util/dirname");
+const tee_1 = require("./util/tee");
+const xargs_1 = require("./util/xargs");
 // io commands
 const import_1 = require("./io/import");
 const export_1 = require("./io/export");
@@ -67,6 +70,7 @@ exports.COMMANDS = {
     cut: { execute: cut_1.cut, acceptsStdin: true },
     sort: { execute: sort_1.sort, acceptsStdin: true },
     uniq: { execute: uniq_1.uniq, acceptsStdin: true },
+    tr: { execute: tr_1.tr, acceptsStdin: true },
     // util commands
     date: { execute: date_1.date },
     man: { execute: man_1.man },
@@ -74,6 +78,8 @@ exports.COMMANDS = {
     file: { execute: file_1.file },
     basename: { execute: basename_1.basename },
     dirname: { execute: dirname_1.dirname },
+    tee: { execute: tee_1.tee, acceptsStdin: true },
+    xargs: { execute: xargs_1.xargs, acceptsStdin: true },
     // io commands
     import: { execute: import_1.importCommand },
     export: { execute: export_1.exportCommand },
