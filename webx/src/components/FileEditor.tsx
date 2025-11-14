@@ -61,10 +61,15 @@ export default function FileEditor({
 
   return (
     <div className="h-full flex flex-col">
-      <div className="flex items-center justify-between p-3 border-b border-bg-subtle">
-        <div className="text-sm font-mono truncate">{filePath}</div>
+      <div className="flex items-center justify-between p-3 border-b border-bg-subtle bg-bg-subtle">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-sm font-mono truncate text-text">{filePath}</span>
+          {isDirty && (
+            <span className="text-xs text-accent font-medium whitespace-nowrap">● unsaved</span>
+          )}
+        </div>
         <button
-          className="btn text-xs"
+          className="btn text-xs whitespace-nowrap"
           onClick={saveFile}
           disabled={!isDirty || saving}
         >

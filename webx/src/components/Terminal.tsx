@@ -22,6 +22,8 @@ export default function Terminal({
   const [input, setInput] = useState('');
   const [shellMessages, setShellMessages] = useState<ShellMessage[]>([]);
   const [shellExecuting, setShellExecuting] = useState(false);
+  const [commandHistory, setCommandHistory] = useState<string[]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
   const endRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
@@ -44,6 +46,10 @@ export default function Terminal({
   async function executeShellCommand(command: string) {
     if (!sessionId) return;
     setShellExecuting(true);
+
+    // Add to history
+    setCommandHistory((prev) => [...prev, command]);
+    setHistoryIndex(-1);
 
     // Add user message
     const userMsg: ShellMessage = {
@@ -117,21 +123,42 @@ export default function Terminal({
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       send();
+    } else if (e.key === 'ArrowUp' && mode === 'shell') {
+      e.preventDefault();
+      const newIndex = historyIndex + 1;
+      if (newIndex < commandHistory.length) {
+        setHistoryIndex(newIndex);
+        setInput(commandHistory[commandHistory.length - 1 - newIndex]);
+      }
+    } else if (e.key === 'ArrowDown' && mode === 'shell') {
+      e.preventDefault();
+      if (historyIndex > 0) {
+        const newIndex = historyIndex - 1;
+        setHistoryIndex(newIndex);
+        setInput(commandHistory[commandHistory.length - 1 - newIndex]);
+      } else if (historyIndex === 0) {
+        setHistoryIndex(-1);
+        setInput('');
+      }
     }
   }
 
   return (
     <div className="h-full flex flex-col bg-bg-panel">
-      <div className="flex items-center justify-between p-2 border-b border-bg-subtle">
-        <div className="text-xs text-text-muted">
-          Mode:{' '}
-          <span className={mode === 'agent' ? 'text-accent' : 'text-text'}>
+      <div className="flex items-center justify-between p-2 border-b border-bg-subtle bg-bg-subtle">
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-text-muted">Mode:</span>
+          <span className={`px-2 py-1 rounded text-xs font-medium ${
+            mode === 'agent'
+              ? 'bg-accent text-white'
+              : 'bg-bg-panel text-accent'
+          }`}>
             {mode.toUpperCase()}
           </span>
         </div>
         <div className="text-xs text-text-muted">
-          {mode === 'agent' && 'Type /exit to switch to shell'}
-          {mode === 'shell' && 'Type /kiana to switch to agent'}
+          {mode === 'agent' && '← Type /exit to shell'}
+          {mode === 'shell' && '← Type /kiana to agent'}
         </div>
       </div>
       <div className="flex-1 overflow-auto p-3 space-y-2 scroll-thin">
