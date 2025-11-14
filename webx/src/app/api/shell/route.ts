@@ -29,9 +29,14 @@ export async function POST(req: NextRequest) {
   }
 
   const store = getSessionStore();
+  const allSessions = store.list();
+  console.log(`Store has ${allSessions.length} sessions:`, allSessions.map(s => s.id));
+  console.log(`Looking for sessionId: ${sessionId}`);
+
   const rec = store.get(sessionId);
   if (!rec) {
     console.error(`Session not found: ${sessionId}`);
+    console.error(`Available sessions: ${allSessions.map(s => s.id).join(', ')}`);
     return new Response('Session not found', { status: 404 });
   }
 
