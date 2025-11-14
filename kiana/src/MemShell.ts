@@ -614,6 +614,49 @@ export class MemShell {
     }
 
     /**
+     * Execute for loop: for variable in items; do commands; done
+     */
+    private execForLoop(variable: string, itemsExpr: string, loopBody: string, expandSubstitutions: boolean): string {
+        // Expand the items expression (handles wildcards, command substitution, variables)
+        let itemsStr = itemsExpr.trim();
+
+        // If items expression contains wildcards or special chars, expand it
+        if (itemsStr.includes('*') || itemsStr.includes('?') || itemsStr.includes('$')) {
+            // Use echo to expand the expression
+            try {
+                itemsStr = this.execInternal(`echo ${itemsStr}`, expandSubstitutions).trim();
+            } catch (e) {
+                // If expansion fails, treat as literal
+            }
+        }
+
+        // Split items by whitespace
+        const items = itemsStr.split(/\s+/).filter(item => item.length > 0);
+        const outputs: string[] = [];
+
+        // Execute loop body for each item
+        for (const item of items) {
+            // Replace variable references in loop body
+            // Handle both $variable and ${variable} forms
+            const expandedBody = loopBody
+                .replace(new RegExp(`\\$\\{${variable}\\}`, 'g'), item)
+                .replace(new RegExp(`\\$${variable}\\b`, 'g'), item);
+
+            try {
+                const output = this.execInternal(expandedBody, expandSubstitutions);
+                if (output) {
+                    outputs.push(output);
+                }
+            } catch (e) {
+                // Continue on error in loop iteration
+                console.error(`Error in for loop iteration (${variable}=${item}):`, (e as Error).message);
+            }
+        }
+
+        return outputs.join('\n');
+    }
+
+    /**
      * Execute a command
      */
     exec(commandLine: string): string {
@@ -626,6 +669,15 @@ export class MemShell {
     private execInternal(commandLine: string, expandSubstitutions: boolean): string {
         if (!commandLine || !commandLine.trim()) {
             return '';
+        }
+
+        // Check for for loop syntax: for variable in items; do commands; done
+        const forLoopMatch = /^\s*for\s+(\w+)\s+in\s+(.+?)\s*;\s*do\s+(.*?)\s*;\s*done\s*$/s.exec(commandLine.trim());
+        if (forLoopMatch) {
+            const variable = forLoopMatch[1];
+            const itemsExpr = forLoopMatch[2];
+            const loopBody = forLoopMatch[3];
+            return this.execForLoop(variable, itemsExpr, loopBody, expandSubstitutions);
         }
 
         // Expand command substitutions $(...)
