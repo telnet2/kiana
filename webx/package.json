@@ -3,10 +3,10 @@
   "private": true,
   "version": "0.1.0",
   "scripts": {
-    "dev": "next dev",
-    "build": "cd ../kiana && bun run build && cd ../webx && next build",
-    "start": "next start",
-    "lint": "next lint",
+    "dev": "bun next dev",
+    "build": "cd ../kiana && bun run build && cd ../webx && bun next build",
+    "start": "bun next start",
+    "lint": "bun next lint",
     "clean": "rm -rf .next"
   },
   "dependencies": {

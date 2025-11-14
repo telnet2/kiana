@@ -32,7 +32,7 @@ A web-based file manager and terminal interface with integrated LLM agent capabi
 ### Install Dependencies
 ```bash
 cd webx
-npm install
+bun install
 ```
 
 ### Environment Variables
@@ -45,7 +45,7 @@ ARK_BASE_URL=https://ark-ap-southeast.byteintl.net/api/v3
 
 ### Run Development Server
 ```bash
-npm run dev
+bun run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000)
