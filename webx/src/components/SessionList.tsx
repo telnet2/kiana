@@ -28,7 +28,7 @@ export default function SessionList({
 
   useEffect(() => {
     loadSessions();
-  }, []);
+  }, [activeId]); // Reload when activeId changes (including auto-created sessions)
 
   async function createSession() {
     setCreating(true);
