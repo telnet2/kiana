@@ -3,54 +3,71 @@
  */
 
 import { CommandContext } from '../types';
-import { ArgumentParser } from 'argparse';
 import { MemNode } from '../../MemFS';
 
 export function find(context: CommandContext, args: string[]): string {
-    const parser = new ArgumentParser({
-        prog: 'find',
-        description: 'Search for files in directory hierarchy',
-        add_help: true
-    });
+    // Manually parse arguments to support -o (OR) operator
+    let path = '.';
+    let typeFilter: string | null = null;
+    let maxDepth: number | null = null;
+    let namePatterns: RegExp[] = [];
 
-    parser.add_argument('path', {
-        nargs: '?',
-        default: '.',
-        help: 'Starting directory'
-    });
-    parser.add_argument('-name', {
-        help: 'Base of file name (can use wildcards)'
-    });
-    parser.add_argument('-type', {
-        choices: ['f', 'd', 'l'],
-        help: 'File type: f (file), d (directory), l (link)'
-    });
-    parser.add_argument('-maxdepth', {
-        type: 'int',
-        help: 'Maximum directory depth'
-    });
+    let i = 0;
+    // First, check if first arg is a path (doesn't start with -)
+    if (args.length > 0 && !args[0].startsWith('-')) {
+        path = args[0];
+        i = 1;
+    }
 
-    const parsed = context.parseArgsWithHelp(parser, args);
-    if (typeof parsed === 'string') return parsed; // Help text
-    const node = context.fs.resolvePath(parsed.path);
+    // Parse remaining arguments
+    while (i < args.length) {
+        const arg = args[i];
+        if (arg === '-name' && i + 1 < args.length) {
+            const pattern = args[i + 1];
+            namePatterns.push(new RegExp(pattern.replace(/\*/g, '.*').replace(/\?/g, '.')));
+            i += 2;
+        } else if (arg === '-type' && i + 1 < args.length) {
+            typeFilter = args[i + 1];
+            i += 2;
+        } else if (arg === '-maxdepth' && i + 1 < args.length) {
+            maxDepth = parseInt(args[i + 1], 10);
+            i += 2;
+        } else if (arg === '-o') {
+            // -o is just a separator, skip it
+            i += 1;
+        } else if (arg === '--help' || arg === '-h') {
+            return 'Usage: find [path] [-name pattern] [-o -name pattern ...] [-type f|d|l] [-maxdepth depth]\n' +
+                   'Search for files in directory hierarchy\n\n' +
+                   'Options:\n' +
+                   '  -name PATTERN    Base of file name (can use wildcards * and ?)\n' +
+                   '  -type TYPE       File type: f (file), d (directory), l (link)\n' +
+                   '  -maxdepth NUM    Maximum directory depth\n' +
+                   '  -o               OR operator (for combining multiple conditions)';
+        } else {
+            i += 1;
+        }
+    }
+
+    const node = context.fs.resolvePath(path);
 
     if (!node) {
-        throw new Error(`find: '${parsed.path}': No such file or directory`);
+        throw new Error(`find: '${path}': No such file or directory`);
     }
 
     const results: string[] = [];
-    const namePattern = parsed.name ? new RegExp(parsed.name.replace(/\*/g, '.*').replace(/\?/g, '.')) : null;
-    const typeFilter = parsed.type;
-    const maxDepth = parsed.maxdepth;
 
     const traverse = (current: MemNode, basePath: string | null, depth: number = 0): void => {
         const currentPath = basePath || current.getPath();
 
         // Apply filters
         let shouldInclude = true;
-        if (namePattern && !namePattern.test(current.name)) {
-            shouldInclude = false;
+
+        // If name patterns are specified, match at least one (OR logic)
+        if (namePatterns.length > 0) {
+            shouldInclude = namePatterns.some(pattern => pattern.test(current.name));
         }
+
+        // If type filter specified, must match
         if (typeFilter === 'f' && !current.isFile()) {
             shouldInclude = false;
         }

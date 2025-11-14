@@ -6,6 +6,14 @@ import { ArgumentParser } from 'argparse';
 import { CommandContext } from '../types';
 
 export function head(context: CommandContext, args: string[], stdin: string | null = null): string {
+    // Pre-process args to convert -20 shorthand to -n 20
+    const processedArgs = args.map(arg => {
+        if (/^-\d+$/.test(arg)) {
+            return ['-n', arg.slice(1)];
+        }
+        return [arg];
+    }).flat();
+
     const parser = new ArgumentParser({
         prog: 'head',
         description: 'Output the first part of files',
@@ -30,7 +38,7 @@ export function head(context: CommandContext, args: string[], stdin: string | nu
         help: 'File(s) to read'
     });
 
-    const parsed = context.parseArgsWithHelp(parser, args);
+    const parsed = context.parseArgsWithHelp(parser, processedArgs);
     if (typeof parsed === 'string') return parsed; // Help text
 
     const numLines = parsed.lines;

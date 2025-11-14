@@ -6,6 +6,13 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.head = head;
 const argparse_1 = require("argparse");
 function head(context, args, stdin = null) {
+    // Pre-process args to convert -20 shorthand to -n 20
+    const processedArgs = args.map(arg => {
+        if (/^-\d+$/.test(arg)) {
+            return ['-n', arg.slice(1)];
+        }
+        return [arg];
+    }).flat();
     const parser = new argparse_1.ArgumentParser({
         prog: 'head',
         description: 'Output the first part of files',
@@ -26,7 +33,7 @@ function head(context, args, stdin = null) {
         nargs: '*',
         help: 'File(s) to read'
     });
-    const parsed = context.parseArgsWithHelp(parser, args);
+    const parsed = context.parseArgsWithHelp(parser, processedArgs);
     if (typeof parsed === 'string')
         return parsed; // Help text
     const numLines = parsed.lines;

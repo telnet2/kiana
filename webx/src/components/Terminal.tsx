@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useChat } from '@ai-sdk/react';
 import { isTextUIPart, isToolOrDynamicToolUIPart, getToolOrDynamicToolName, type UIMessage } from 'ai';
+import { Streamdown } from 'streamdown';
 import ToolResultView from './ToolResultView';
 
 interface ShellMessage {
@@ -15,8 +16,10 @@ interface ShellMessage {
 
 export default function Terminal({
   sessionId,
+  onCommandExecuted,
 }: {
   sessionId?: string | null;
+  onCommandExecuted?: () => void;
 }) {
   const [mode, setMode] = useState<'shell' | 'agent'>('shell');
   const [input, setInput] = useState('');
@@ -24,6 +27,7 @@ export default function Terminal({
   const [shellExecuting, setShellExecuting] = useState(false);
   const [commandHistory, setCommandHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
+  const [wasStreaming, setWasStreaming] = useState(false);
   const endRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
@@ -35,6 +39,39 @@ export default function Terminal({
 
   const streaming = status === 'streaming' || status === 'submitted';
 
+  // Custom components for Streamdown styling
+  const markdownComponents = {
+    h1: ({ children }: any) => <h1 className="text-lg font-bold mt-2 mb-1">{children}</h1>,
+    h2: ({ children }: any) => <h2 className="text-base font-bold mt-2 mb-1">{children}</h2>,
+    h3: ({ children }: any) => <h3 className="text-sm font-bold mt-1.5 mb-0.5">{children}</h3>,
+    h4: ({ children }: any) => <h4 className="text-sm font-semibold mt-1 mb-0.5">{children}</h4>,
+    h5: ({ children }: any) => <h5 className="text-xs font-semibold mt-1 mb-0.5">{children}</h5>,
+    h6: ({ children }: any) => <h6 className="text-xs font-semibold mt-1 mb-0.5">{children}</h6>,
+    p: ({ children }: any) => <p className="my-1">{children}</p>,
+    strong: ({ children }: any) => <strong className="font-bold">{children}</strong>,
+    em: ({ children }: any) => <em className="italic">{children}</em>,
+    a: ({ href, children }: any) => (
+      <a href={href} className="text-blue-500 underline hover:text-blue-400" target="_blank" rel="noopener noreferrer">
+        {children}
+      </a>
+    ),
+    code: ({ children }: any) => (
+      <code className="bg-gray-800 text-gray-100 px-1.5 py-0.5 rounded text-xs font-mono">{children}</code>
+    ),
+    pre: ({ children }: any) => (
+      <pre className="bg-gray-800 text-gray-100 p-3 rounded my-2 overflow-x-auto text-xs">{children}</pre>
+    ),
+    blockquote: ({ children }: any) => (
+      <blockquote className="border-l-4 border-gray-600 pl-3 italic my-1 text-gray-400">{children}</blockquote>
+    ),
+    ul: ({ children }: any) => <ul className="list-disc list-inside my-1">{children}</ul>,
+    ol: ({ children }: any) => <ol className="list-decimal list-inside my-1">{children}</ol>,
+    li: ({ children }: any) => <li className="my-0.5">{children}</li>,
+    table: ({ children }: any) => <table className="border-collapse border border-gray-600 my-1 text-xs">{children}</table>,
+    th: ({ children }: any) => <th className="border border-gray-600 px-2 py-1 bg-gray-800 font-bold">{children}</th>,
+    td: ({ children }: any) => <td className="border border-gray-600 px-2 py-1">{children}</td>,
+  };
+
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages.length, shellMessages.length, streaming, shellExecuting]);
@@ -42,6 +79,14 @@ export default function Terminal({
   useEffect(() => {
     if (!streaming && !shellExecuting && sessionId) inputRef.current?.focus();
   }, [streaming, shellExecuting, sessionId]);
+
+  // Refresh file tree when agent finishes executing tools
+  useEffect(() => {
+    if (wasStreaming && !streaming && mode === 'agent') {
+      onCommandExecuted?.();
+    }
+    setWasStreaming(streaming);
+  }, [streaming, mode, onCommandExecuted]);
 
   async function executeShellCommand(command: string) {
     if (!sessionId) return;
@@ -86,6 +131,7 @@ export default function Terminal({
     }
 
     setShellExecuting(false);
+    onCommandExecuted?.();
   }
 
   async function send() {
@@ -189,8 +235,10 @@ export default function Terminal({
                 {m.parts.map((part, idx) => {
                   if (isTextUIPart(part)) {
                     return (
-                      <div key={idx} className="whitespace-pre-wrap text-xs leading-relaxed">
-                        {part.text}
+                      <div key={idx} className="text-sm">
+                        <Streamdown isAnimating={streaming} components={markdownComponents}>
+                          {part.text}
+                        </Streamdown>
                       </div>
                     );
                   }

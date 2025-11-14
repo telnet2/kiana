@@ -25,6 +25,10 @@ function grep(context, args, stdin = null) {
         metavar: 'PATTERN',
         help: 'Pattern to search for (can be used multiple times)'
     });
+    parser.add_argument('-E', '--extended-regexp', {
+        action: 'store_true',
+        help: 'Interpret patterns as extended regular expressions'
+    });
     parser.add_argument('-i', '--ignore-case', {
         action: 'store_true',
         help: 'Ignore case distinctions'

@@ -2,20 +2,19 @@
 import { useEffect, useState } from 'react';
 import SessionList from '@/components/SessionList';
 import FileExplorer from '@/components/FileExplorer';
-import FileEditor from '@/components/FileEditor';
 import Terminal from '@/components/Terminal';
+import FileEditorModal from '@/components/FileEditorModal';
 import { useHorizontalResize, useVerticalResize } from '@/components/Resizable';
 
 export default function Page() {
   const [activeSession, setActiveSession] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [fileTreeRefresh, setFileTreeRefresh] = useState(0);
+  const [isEditorModalOpen, setIsEditorModalOpen] = useState(false);
 
   const { ref: leftRef, width: leftWidth, Divider: VDivider1 } = useHorizontalResize(300);
   // VDivider2: top splitter (Sessions/FileExplorer) - normal direction (drag down = grow)
   const { ref: topRef, height: topHeight, Divider: VDivider2 } = useVerticalResize(200, false);
-  // HDivider: bottom splitter (Terminal) - inverted direction (drag up = grow, more intuitive for bottom)
-  const { height: terminalHeight, Divider: HDivider } = useVerticalResize(220, true);
 
   // On first load: use most recent session if any; otherwise create one
   useEffect(() => {
@@ -39,7 +38,7 @@ export default function Page() {
 
   return (
     <div className="h-screen w-screen bg-bg-panel flex flex-col">
-      {/* Main Content: Left Sidebar + Editor */}
+      {/* Main Content: Left Pane + Right Pane */}
       <div className="flex-1 min-h-0 flex">
         {/* Left Pane: Sessions + File Explorer */}
         <div ref={leftRef} style={{ width: leftWidth }} className="h-full bg-bg-panel border-r border-bg-subtle flex flex-col">
@@ -56,7 +55,10 @@ export default function Page() {
           <div className="flex-1 min-h-0" key={fileTreeRefresh}>
             <FileExplorer
               sessionId={activeSession}
-              onSelectFile={setSelectedFile}
+              onSelectFile={(path) => {
+                setSelectedFile(path);
+                setIsEditorModalOpen(true);
+              }}
               onFileCreated={() => setFileTreeRefresh((t) => t + 1)}
             />
           </div>
@@ -65,22 +67,22 @@ export default function Page() {
         {/* Vertical Divider */}
         <VDivider1 />
 
-        {/* Center Pane: File Editor */}
+        {/* Right Pane: Terminal/Chat */}
         <div className="flex-1 min-w-0 flex flex-col">
-          <FileEditor
+          <Terminal
             sessionId={activeSession}
-            filePath={selectedFile}
+            onCommandExecuted={() => setFileTreeRefresh((t) => t + 1)}
           />
         </div>
       </div>
 
-      {/* Horizontal Divider */}
-      <HDivider />
-
-      {/* Bottom Pane: Terminal */}
-      <div style={{ height: terminalHeight }} className="min-h-0 border-t border-bg-subtle">
-        <Terminal sessionId={activeSession} />
-      </div>
+      {/* File Editor Modal */}
+      <FileEditorModal
+        sessionId={activeSession}
+        filePath={selectedFile}
+        isOpen={isEditorModalOpen}
+        onClose={() => setIsEditorModalOpen(false)}
+      />
     </div>
   );
 }
