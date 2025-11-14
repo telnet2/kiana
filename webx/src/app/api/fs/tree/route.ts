@@ -36,70 +36,25 @@ function buildTree(path: string, fs: any): Node | null {
     if (node.isDirectory && node.isDirectory()) {
       const children: Node[] = [];
       try {
-        // Try different ways to get entries
-        let entries = null;
+        // MemDirectory exposes children as a Map<string, MemNode> property
+        // and optionally has a listChildren() method
+        const childNodes = typeof node.listChildren === 'function'
+          ? node.listChildren()
+          : node.children instanceof Map
+            ? Array.from(node.children.values())
+            : [];
 
-        // Try as property first
-        if (node.entries && typeof node.entries !== 'function') {
-          entries = node.entries;
-          console.log(`Got entries as property at ${path}`);
-        }
-        // Try as method
-        else if (typeof node.entries === 'function') {
-          entries = node.entries();
-          console.log(`Got entries as method at ${path}`);
-        }
+        console.log(`Found ${childNodes.length} children at ${path}`);
 
-        // Also check for children property
-        if (!entries && node.children) {
-          entries = node.children;
-          console.log(`Got entries as children property at ${path}`);
-        }
-
-        if (entries) {
-          // Debug: log what type of entries we got
-          console.log(`Entries type at ${path}:`, {
-            isMap: entries instanceof Map,
-            isArray: Array.isArray(entries),
-            isIterable: typeof entries[Symbol.iterator] === 'function',
-            keys: entries instanceof Map ? Array.from(entries.keys()) : (Array.isArray(entries) ? entries.map((e: any) => e.name) : Object.keys(entries)),
-          });
-
-          // Handle different iterable types
-          if (entries instanceof Map || (typeof entries[Symbol.iterator] === 'function' && !Array.isArray(entries))) {
-            for (const [name, child] of entries) {
-              const childPath = `${path}/${name}`.replace(/\/+/g, '/');
-              const childNode = buildTree(childPath, fs);
-              if (childNode) {
-                children.push(childNode);
-              }
-            }
-          } else if (Array.isArray(entries)) {
-            // Handle array of nodes
-            for (const child of entries) {
-              const name = child.name || child;
-              const childPath = `${path}/${name}`.replace(/\/+/g, '/');
-              const childNode = buildTree(childPath, fs);
-              if (childNode) {
-                children.push(childNode);
-              }
-            }
-          } else if (typeof entries === 'object') {
-            // Handle object-based entries
-            for (const name in entries) {
-              const childPath = `${path}/${name}`.replace(/\/+/g, '/');
-              const childNode = buildTree(childPath, fs);
-              if (childNode) {
-                children.push(childNode);
-              }
-            }
+        for (const child of childNodes) {
+          const childPath = `${path}/${child.name}`.replace(/\/+/g, '/');
+          const childNode = buildTree(childPath, fs);
+          if (childNode) {
+            children.push(childNode);
           }
-        } else {
-          console.log(`No entries found at ${path}`);
         }
       } catch (entriesErr) {
-        console.warn(`Error iterating entries at ${path}:`, (entriesErr as Error).message);
-        console.log(`Node properties at ${path}:`, Object.keys(node));
+        console.warn(`Error listing children at ${path}:`, (entriesErr as Error).message);
       }
       return {
         type: 'directory',
