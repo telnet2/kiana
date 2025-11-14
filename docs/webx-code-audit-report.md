@@ -6,7 +6,9 @@
 
 ## Executive Summary
 
-Comprehensive code audit identified **3 critical issues** and resolved them all. No additional blocking issues found. Code quality is good overall.
+Comprehensive code audit identified **4 critical issues** and resolved them all. Code quality is good overall.
+
+**Additional Issue Found During Testing:** Incorrect MemFS API call prevented imported files from displaying in the file tree. Fixed by using correct `listChildren()` method.
 
 ---
 
@@ -32,6 +34,30 @@ Without `export const dynamic = 'force-dynamic'`, Next.js may cache responses:
 **Solution:** Add `export const dynamic = 'force-dynamic'` to all three routes.
 
 **Status:** ✅ FIXED in commit `688d707`
+
+---
+
+### 2. Incorrect MemFS API in Tree Builder
+
+**Severity:** CRITICAL
+**File Affected:** 1
+- `/src/app/api/fs/tree/route.ts` (GET)
+
+**Problem:**
+Code called non-existent `node.entries()` method, which is not part of MemDirectory API. This caused:
+- Tree building to fail silently and return empty children array
+- Imported files showed success but never appeared in file explorer
+- Root always resolved successfully but children were always empty
+
+**Root Cause:** MemDirectory exposes children via:
+- `listChildren()` method (returns `MemNode[]`)
+- `children` property (direct access to `Map<string, MemNode>`)
+
+NOT via `entries()` method.
+
+**Solution:** Changed to use `node.listChildren()` with fallback to `node.children.values()`.
+
+**Status:** ✅ FIXED in commit `d61b582`
 
 ---
 
@@ -94,12 +120,15 @@ fs.createFile(path, content);                  // Line: fs/import:34
 // ✅ FileSystem node methods
 node.isFile()                                  // Multiple routes
 node.isDirectory()                             // Line: fs/tree:24
-node.read()                                    // Line: fs/file:24, fs/tree:52
+node.read()                                    // Line: fs/file:24
 node.write(content)                            // Line: fs/import:37
-node.entries()                                 // Line: fs/tree:26
+node.listChildren()                            // Returns MemNode[] (FIXED from entries())
+
+// ✅ MemDirectory properties
+node.children                                  // Map<string, MemNode> (direct property)
 ```
 
-**Result:** All MemTools API calls are correct.
+**Result:** All MemTools API calls are correct. ❌ Initial code had incorrect `node.entries()` call - fixed to use `node.listChildren()` which is the documented API.
 
 ---
 
@@ -245,6 +274,14 @@ new Response(`Error: ${message}`, { status: 500 })
 - **Fix:** Removed debug console.log/console.error
 - **Severity:** LOW
 
+### Issue #5: Incorrect MemFS API call in tree builder (Commit `d61b582`)
+- **File:** `/src/app/api/fs/tree/route.ts`
+- **Problem:** Called non-existent `node.entries()` method, causing tree to always return null with no children
+- **Root Cause:** MemDirectory API uses `listChildren()` method or `children` Map property, not `entries()`
+- **Fix:** Changed to use `node.listChildren()` with fallback to `node.children.values()`
+- **Impact:** Imported files weren't showing in file tree despite being successfully imported
+- **Severity:** CRITICAL
+
 ---
 
 ## Summary & Recommendations
@@ -260,8 +297,9 @@ new Response(`Error: ${message}`, { status: 500 })
 - ✅ Good separation of concerns (server/client)
 
 **Fixed Issues:**
-- ❌ → ✅ 3 critical issues resolved
+- ❌ → ✅ 4 critical issues resolved
 - ❌ → ✅ 1 high priority issue resolved
+- ❌ → ✅ 1 low priority issue resolved
 
 **Remaining Opportunities (Future):**
 1. Add TypeScript types for MemFS/MemShell when available
