@@ -28,17 +28,32 @@ export async function POST(req: NextRequest) {
     const buf = Buffer.from(await value.arrayBuffer());
     const memfs = session.memtools.getFileSystem();
     const target = relPath.startsWith('/') ? relPath.slice(1) : relPath;
-    ensureDirs(memfs, target);
     const full = target.startsWith('/') ? target : `/${target}`;
+
+    console.log(`Importing: ${full}`);
+
     try {
+      ensureDirs(memfs, full);
       memfs.createFile(full, buf.toString('utf8'));
-    } catch {
-      const node = memfs.resolvePath(full);
-      if (node && node.isFile()) node.write(buf.toString('utf8'));
-      else throw new Error(`Unable to write ${full}`);
+      console.log(`✓ Created: ${full}`);
+    } catch (e) {
+      try {
+        const node = memfs.resolvePath(full);
+        if (node && node.isFile()) {
+          node.write(buf.toString('utf8'));
+          console.log(`✓ Updated: ${full}`);
+        } else {
+          console.error(`Failed to create/update ${full}:`, (e as Error).message);
+          throw new Error(`Unable to write ${full}`);
+        }
+      } catch (writeErr) {
+        console.error(`Error writing ${full}:`, (writeErr as Error).message);
+        throw writeErr;
+      }
     }
     count++;
   }
 
+  console.log(`Import complete: ${count} files imported`);
   return Response.json({ imported: count });
 }

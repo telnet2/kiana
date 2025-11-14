@@ -165,25 +165,19 @@ export default function Terminal({
         {mode === 'shell' ? (
           // Shell mode messages
           shellMessages.map((m) => (
-            <div key={m.id} className="rounded-md p-2 bg-bg-subtle text-sm">
-              <div className="text-xs text-text-muted mb-1">
-                {m.role.toUpperCase()}
-                {m.exitCode !== undefined && m.role === 'assistant' && ` [${m.exitCode}]`}
-              </div>
-              <div className="text-xs whitespace-pre-wrap leading-relaxed">
-                {m.command && (
-                  <>
-                    <span className="text-accent">$ </span>
-                    {m.command}
-                  </>
-                )}
-                {m.output && (
-                  <div className="mt-1 text-text-muted">{m.output}</div>
-                )}
-                {m.error && (
-                  <div className="mt-1 text-red-400">{m.error}</div>
-                )}
-              </div>
+            <div key={m.id} className="text-xs whitespace-pre-wrap leading-relaxed font-mono">
+              {m.command && (
+                <div className="text-text-default">
+                  <span className="text-accent">$ </span>
+                  {m.command}
+                </div>
+              )}
+              {m.output && (
+                <div className="text-text-muted">{m.output}</div>
+              )}
+              {m.error && (
+                <div className="text-red-400">{m.error}</div>
+              )}
             </div>
           ))
         ) : (

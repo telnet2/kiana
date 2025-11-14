@@ -13,26 +13,53 @@ type Node = {
 function buildTree(path: string, fs: any): Node | null {
   try {
     const node = fs.resolvePath(path);
-    if (!node) return null;
+    if (!node) {
+      // Root directory might not exist yet - that's okay, return empty root
+      if (path === '/') {
+        console.log('Root directory not found, returning empty root');
+        return {
+          type: 'directory',
+          name: '/',
+          children: [],
+        };
+      }
+      return null;
+    }
 
-    if (node.isFile()) {
+    if (node.isFile && node.isFile()) {
       return {
         type: 'file',
         name: path.split('/').pop() || path,
       };
     }
 
-    if (node.isDirectory()) {
+    if (node.isDirectory && node.isDirectory()) {
       const children: Node[] = [];
-      const entries = node.entries();
-      if (entries) {
-        for (const [name, child] of entries) {
-          const childPath = `${path}/${name}`.replace(/\/+/g, '/');
-          const childNode = buildTree(childPath, fs);
-          if (childNode) {
-            children.push(childNode);
+      try {
+        const entries = node.entries();
+        if (entries) {
+          // Handle different iterable types
+          if (entries instanceof Map || typeof entries[Symbol.iterator] === 'function') {
+            for (const [name, child] of entries) {
+              const childPath = `${path}/${name}`.replace(/\/+/g, '/');
+              const childNode = buildTree(childPath, fs);
+              if (childNode) {
+                children.push(childNode);
+              }
+            }
+          } else if (typeof entries === 'object') {
+            // Handle object-based entries
+            for (const name in entries) {
+              const childPath = `${path}/${name}`.replace(/\/+/g, '/');
+              const childNode = buildTree(childPath, fs);
+              if (childNode) {
+                children.push(childNode);
+              }
+            }
           }
         }
+      } catch (entriesErr) {
+        console.warn(`Error iterating entries at ${path}:`, (entriesErr as Error).message);
       }
       return {
         type: 'directory',
@@ -41,7 +68,16 @@ function buildTree(path: string, fs: any): Node | null {
       };
     }
   } catch (e) {
-    // Ignore errors
+    // Log error for debugging
+    console.error(`Error building tree at ${path}:`, (e as Error).message);
+    // Root directory might have issues - return empty root as fallback
+    if (path === '/') {
+      return {
+        type: 'directory',
+        name: '/',
+        children: [],
+      };
+    }
   }
   return null;
 }
@@ -55,7 +91,25 @@ export async function GET(req: NextRequest) {
   if (!rec) return new Response('Session not found', { status: 404 });
 
   const fs = rec.memtools.getFileSystem();
+  console.log('Building tree for session:', sessionId);
   const root = buildTree('/', fs);
 
+  if (root) {
+    console.log(`Tree built successfully with ${countFiles(root)} files`);
+  } else {
+    console.warn('Tree is null for session:', sessionId);
+  }
+
   return Response.json({ root });
+}
+
+function countFiles(node: Node | null): number {
+  if (!node) return 0;
+  let count = node.type === 'file' ? 1 : 0;
+  if (node.children) {
+    for (const child of node.children) {
+      count += countFiles(child);
+    }
+  }
+  return count;
 }

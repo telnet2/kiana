@@ -8,6 +8,7 @@
         "@ai-sdk/openai-compatible": "^2.0.0-beta.32",
         "ai": "^6.0.0-beta.94",
         "argparse": "^2.0.1",
+        "coffee-script": "^1.12.7",
         "deasync": "^0.1.30",
         "diff": "^8.0.2",
         "dotenv": "^17.2.3",
@@ -252,6 +253,8 @@
     "chokidar": ["chokidar@1.7.0", "", { "dependencies": { "anymatch": "^1.3.0", "async-each": "^1.0.0", "glob-parent": "^2.0.0", "inherits": "^2.0.1", "is-binary-path": "^1.0.0", "is-glob": "^2.0.0", "path-is-absolute": "^1.0.0", "readdirp": "^2.0.0" }, "optionalDependencies": { "fsevents": "^1.0.0" } }, "sha512-mk8fAWcRUOxY7btlLtitj3A45jOwSAxH4tOFOoEGbVsl6cL6pPMWUy7dwZ/canfj3QEdP6FHSnf/l1c6/WkzVg=="],
 
     "chownr": ["chownr@3.0.0", "https://bnpm.byted.org/chownr/-/chownr-3.0.0.tgz", {}, "sha512-+IxzY9BZOQd/XuYPRmrvEVjF/nqj5kgT4kEq7VofrDoM1MxoRjEWkrCC3EtLi59TVawxTAn+orJwFQcrqEN1+g=="],
+
+    "coffee-script": ["coffee-script@1.12.7", "https://bnpm.byted.org/coffee-script/-/coffee-script-1.12.7.tgz", { "bin": { "cake": "./bin/cake", "coffee": "./bin/coffee" } }, "sha512-fLeEhqwymYat/MpTPUjSKHVYYl0ec2mOyALEMLmzr5i1isuG+6jfI2j2d5oBO3VIzgUXgBVIcOT9uH1TFxBckw=="],
 
     "commander": ["commander@2.16.0", "", {}, "sha512-sVXqklSaotK9at437sFlFpyOcJonxe0yST/AG9DkQKUdIE6IqGIMv4SfAQSKaJbSdVEJYItASCrBiVQHq1HQew=="],
 
