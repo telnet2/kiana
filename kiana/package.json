@@ -20,6 +20,7 @@
         "@ai-sdk/openai-compatible": "^2.0.0-beta.32",
         "ai": "^6.0.0-beta.94",
         "argparse": "^2.0.1",
+        "coffee-script": "^1.12.7",
         "deasync": "^0.1.30",
         "diff": "^8.0.2",
         "dotenv": "^17.2.3",
