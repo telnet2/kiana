@@ -38,6 +38,13 @@ function buildTree(path: string, fs: any): Node | null {
       try {
         const entries = node.entries();
         if (entries) {
+          // Debug: log what type of entries we got
+          console.log(`Entries type at ${path}:`, {
+            isMap: entries instanceof Map,
+            isIterable: typeof entries[Symbol.iterator] === 'function',
+            keys: entries instanceof Map ? Array.from(entries.keys()) : Object.keys(entries),
+          });
+
           // Handle different iterable types
           if (entries instanceof Map || typeof entries[Symbol.iterator] === 'function') {
             for (const [name, child] of entries) {
@@ -57,6 +64,8 @@ function buildTree(path: string, fs: any): Node | null {
               }
             }
           }
+        } else {
+          console.log(`No entries found at ${path}`);
         }
       } catch (entriesErr) {
         console.warn(`Error iterating entries at ${path}:`, (entriesErr as Error).message);
