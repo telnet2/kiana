@@ -1,7 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  swcMinify: true,
   webpack: (config, { isServer }) => {
     // vm2 and coffee-script are Node.js only modules
     // They should never be bundled for browser use
