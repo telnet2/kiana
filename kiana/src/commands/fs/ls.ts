@@ -33,6 +33,17 @@ export function ls(context: CommandContext, args: string[]): string {
     const paths = parsed.paths.length > 0 ? parsed.paths : ['.'];
     const results: string[] = [];
 
+    // Debug logging
+    console.log(`[ls] Listing paths:`, paths);
+    const rootNode = context.fs.resolvePath('/');
+    console.log(`[ls] Root directory exists:`, !!rootNode);
+    if (rootNode && rootNode.isDirectory?.()) {
+        const rootChildren = typeof rootNode.listChildren === 'function'
+            ? rootNode.listChildren()
+            : Array.from(rootNode.children.values());
+        console.log(`[ls] Root has ${rootChildren.length} children:`, rootChildren.map(c => c.name));
+    }
+
     // Check if we have multiple directories (not just multiple files)
     const dirCount = paths.filter((p: string) => {
         const n = context.fs.resolvePath(p);
@@ -55,7 +66,10 @@ export function ls(context: CommandContext, args: string[]): string {
         if (node.isFile()) {
             results.push(parsed.l ? formatLong([node]) : node.name);
         } else if (node.isDirectory()) {
-            const children = Array.from(node.children.values());
+            // Use listChildren() method if available, otherwise fallback to children.values()
+            const children = typeof node.listChildren === 'function'
+                ? node.listChildren()
+                : Array.from(node.children.values());
 
             if (parsed.l) {
                 results.push(formatLong(children));

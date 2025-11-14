@@ -87,6 +87,14 @@ export async function GET(req: NextRequest) {
 
   const fs = rec.memtools.getFileSystem();
   console.log('Building tree for session:', sessionId);
+
+  // Debug: list root children directly
+  const rootNode = fs.resolvePath('/');
+  if (rootNode && rootNode.isDirectory?.()) {
+    const children = rootNode.listChildren?.() || [];
+    console.log(`Root directory has ${children.length} children:`, children.map((c: any) => c.name));
+  }
+
   const root = buildTree('/', fs);
 
   if (root) {

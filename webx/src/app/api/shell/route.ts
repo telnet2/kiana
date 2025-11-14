@@ -32,30 +32,28 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const shell = rec.memtools.shell;
-    const result = await shell.exec(command);
-
-    // Format output
-    let output = '';
-    if (result.stdout) output += result.stdout;
-    if (result.stderr) output += result.stderr;
+    // Use the public exec() method on MemTools
+    // This executes commands in the MemShell which uses the same MemFS instance
+    console.log(`Executing command: ${command}`);
+    const output = rec.memtools.exec(command);
+    console.log(`Command output: ${output || '(empty)'}`);
 
     return Response.json({
       command,
       output: output.trim(),
-      stdout: result.stdout,
-      stderr: result.stderr,
-      exitCode: result.exitCode ?? 0,
+      exitCode: 0,
     });
   } catch (e) {
+    const errorMessage = (e as Error).message;
+    console.error(`Command failed: ${command}`, errorMessage);
     return Response.json(
       {
         command,
         output: '',
-        error: (e as Error).message,
+        error: errorMessage,
         exitCode: 1,
       },
-      { status: 500 }
+      { status: 200 }
     );
   }
 }

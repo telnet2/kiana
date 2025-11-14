@@ -35,7 +35,8 @@ export async function POST(req: NextRequest) {
     try {
       ensureDirs(memfs, full);
       memfs.createFile(full, buf.toString('utf8'));
-      console.log(`✓ Created: ${full}`);
+      const verifyNode = memfs.resolvePath(full);
+      console.log(`✓ Created: ${full} (verified: ${verifyNode ? 'exists' : 'missing'})`);
     } catch (e) {
       try {
         const node = memfs.resolvePath(full);
