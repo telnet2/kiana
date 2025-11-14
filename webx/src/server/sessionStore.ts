@@ -34,11 +34,14 @@ class SessionStore {
   }
 }
 
-let store: SessionStore | null = null;
+// Use globalThis to ensure singleton pattern survives module reloads in Next.js dev mode
+declare global {
+  var sessionStore: SessionStore | undefined;
+}
 
 export function getSessionStore(): SessionStore {
-  if (!store) {
-    store = new SessionStore();
+  if (!global.sessionStore) {
+    global.sessionStore = new SessionStore();
   }
-  return store;
+  return global.sessionStore;
 }
