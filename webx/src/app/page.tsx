@@ -12,8 +12,10 @@ export default function Page() {
   const [fileTreeRefresh, setFileTreeRefresh] = useState(0);
 
   const { ref: leftRef, width: leftWidth, Divider: VDivider1 } = useHorizontalResize(300);
-  const { ref: topRef, height: topHeight, Divider: VDivider2 } = useVerticalResize(200);
-  const { height: terminalHeight, Divider: HDivider } = useVerticalResize(220);
+  // VDivider2: top splitter (Sessions/FileExplorer) - normal direction (drag down = grow)
+  const { ref: topRef, height: topHeight, Divider: VDivider2 } = useVerticalResize(200, false);
+  // HDivider: bottom splitter (Terminal) - inverted direction (drag up = grow, more intuitive for bottom)
+  const { height: terminalHeight, Divider: HDivider } = useVerticalResize(220, true);
 
   // On first load: use most recent session if any; otherwise create one
   useEffect(() => {

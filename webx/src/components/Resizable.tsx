@@ -44,7 +44,13 @@ export function useHorizontalResize(initialWidth: number) {
   return { ref, width, Divider };
 }
 
-export function useVerticalResize(initialHeight: number) {
+/**
+ * Vertical resize hook
+ * @param initialHeight - Initial height value
+ * @param invertDelta - If true, dragging UP expands the element (for bottom splitters)
+ *                      If false, dragging DOWN expands the element (for top splitters)
+ */
+export function useVerticalResize(initialHeight: number, invertDelta: boolean = false) {
   const [height, setHeight] = useState(initialHeight);
   const ref = useRef<HTMLDivElement | null>(null);
   const startYRef = useRef<number | null>(null);
@@ -63,7 +69,14 @@ export function useVerticalResize(initialHeight: number) {
   const handleMouseMove = (e: MouseEvent) => {
     if (startYRef.current === null || startHeightRef.current === null) return;
     e.preventDefault();
-    const delta = e.clientY - startYRef.current;
+    // Delta calculation:
+    // - invertDelta=false (top splitters): e.clientY - startYRef.current
+    //   Dragging DOWN increases, dragging UP decreases
+    // - invertDelta=true (bottom splitters): startYRef.current - e.clientY
+    //   Dragging UP increases, dragging DOWN decreases (more intuitive for bottom)
+    const delta = invertDelta
+      ? startYRef.current - e.clientY
+      : e.clientY - startYRef.current;
     const newHeight = Math.max(100, startHeightRef.current + delta);
     setHeight(newHeight);
   };
