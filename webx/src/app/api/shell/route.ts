@@ -9,7 +9,6 @@ export async function POST(req: NextRequest) {
   const sessionId = url.searchParams.get('sessionId');
 
   if (!sessionId) {
-    console.error('Missing sessionId in request');
     return new Response('Missing sessionId', { status: 400 });
   }
 
@@ -19,29 +18,21 @@ export async function POST(req: NextRequest) {
     body = await req.json();
     command = body.command;
   } catch (e) {
-    console.error('Failed to parse body:', e);
     return new Response('Invalid request body', { status: 400 });
   }
 
   if (!command) {
-    console.error('Missing command in body');
     return new Response('Missing command', { status: 400 });
   }
 
   const store = getSessionStore();
-  const allSessions = store.list();
-  console.log(`Store has ${allSessions.length} sessions:`, allSessions.map(s => s.id));
-  console.log(`Looking for sessionId: ${sessionId}`);
-
   const rec = store.get(sessionId);
   if (!rec) {
-    console.error(`Session not found: ${sessionId}`);
-    console.error(`Available sessions: ${allSessions.map(s => s.id).join(', ')}`);
     return new Response('Session not found', { status: 404 });
   }
 
   try {
-    const shell = rec.memtools.getShell();
+    const shell = rec.memtools.shell;
     const result = await shell.exec(command);
 
     // Format output
