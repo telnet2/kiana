@@ -44,11 +44,18 @@ export default function ToolResultView({
     state: 'output-available' | 'output-error';
     output?: any;
     errorText?: string;
+    input?: any;
   };
 }) {
   const [expanded, setExpanded] = useState(false);
   const output = toolPart.state === 'output-error' ? toolPart.errorText : toolPart.output;
   const isError = toolPart.state === 'output-error';
+
+  // Extract command from input if this is memfs_exec tool
+  let command = '';
+  if (toolName === 'memfs_exec' && toolPart.input) {
+    command = toolPart.input.command || '';
+  }
 
   if (!output) {
     return (
@@ -66,6 +73,11 @@ export default function ToolResultView({
     return (
       <div className={`text-xs p-2 rounded bg-black/20 text-text-muted whitespace-pre-wrap break-words`}>
         <span className="font-medium">⏺ {toolName}</span>
+        {command && (
+          <div className="mt-1 text-accent font-mono text-xs">
+            $ {command}
+          </div>
+        )}
         <div className="mt-1">{displayStr}</div>
       </div>
     );
@@ -77,10 +89,17 @@ export default function ToolResultView({
         onClick={() => setExpanded(!expanded)}
         className="w-full text-left px-3 py-2 bg-bg-subtle hover:bg-bg-subtle/80 font-medium flex items-center justify-between transition-colors"
       >
-        <span>
-          ⏺ {toolName}
-          {isTruncated && <span className="text-text-muted ml-2">… (+{count - 5})</span>}
-        </span>
+        <div className="flex-1">
+          <div>
+            ⏺ {toolName}
+            {isTruncated && <span className="text-text-muted ml-2">… (+{count - 5})</span>}
+          </div>
+          {command && (
+            <div className="mt-1 text-accent font-mono text-xs font-normal">
+              $ {command}
+            </div>
+          )}
+        </div>
         <span className="text-text-muted text-xs">{expanded ? '▾' : '▸'}</span>
       </button>
       {expanded && (

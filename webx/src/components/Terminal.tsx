@@ -208,7 +208,11 @@ export default function Terminal({
                         <ToolResultView
                           key={idx}
                           toolName={toolName}
-                          toolPart={part as any}
+                          toolPart={{
+                            ...(part as any),
+                            // Pass input from the tool call if available
+                            input: (part as any).input,
+                          }}
                         />
                       );
                     }
