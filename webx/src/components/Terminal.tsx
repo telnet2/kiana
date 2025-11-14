@@ -4,6 +4,15 @@ import { useChat } from '@ai-sdk/react';
 import { isTextUIPart, isToolOrDynamicToolUIPart, getToolOrDynamicToolName, type UIMessage } from 'ai';
 import ToolResultView from './ToolResultView';
 
+interface ShellMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  command?: string;
+  output?: string;
+  exitCode?: number;
+  error?: string;
+}
+
 export default function Terminal({
   sessionId,
 }: {
@@ -11,6 +20,8 @@ export default function Terminal({
 }) {
   const [mode, setMode] = useState<'shell' | 'agent'>('shell');
   const [input, setInput] = useState('');
+  const [shellMessages, setShellMessages] = useState<ShellMessage[]>([]);
+  const [shellExecuting, setShellExecuting] = useState(false);
   const endRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
@@ -24,14 +35,55 @@ export default function Terminal({
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages.length, streaming]);
+  }, [messages.length, shellMessages.length, streaming, shellExecuting]);
 
   useEffect(() => {
-    if (!streaming && sessionId) inputRef.current?.focus();
-  }, [streaming, sessionId]);
+    if (!streaming && !shellExecuting && sessionId) inputRef.current?.focus();
+  }, [streaming, shellExecuting, sessionId]);
+
+  async function executeShellCommand(command: string) {
+    if (!sessionId) return;
+    setShellExecuting(true);
+
+    // Add user message
+    const userMsg: ShellMessage = {
+      id: `user-${Date.now()}`,
+      role: 'user',
+      command,
+    };
+    setShellMessages((prev) => [...prev, userMsg]);
+
+    try {
+      const res = await fetch(`/api/shell?sessionId=${encodeURIComponent(sessionId)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ command }),
+      });
+      const data = await res.json();
+
+      const assistantMsg: ShellMessage = {
+        id: `assistant-${Date.now()}`,
+        role: 'assistant',
+        output: data.output,
+        exitCode: data.exitCode,
+        error: data.error,
+      };
+      setShellMessages((prev) => [...prev, assistantMsg]);
+    } catch (e) {
+      const errorMsg: ShellMessage = {
+        id: `assistant-${Date.now()}`,
+        role: 'assistant',
+        error: (e as Error).message,
+        exitCode: 1,
+      };
+      setShellMessages((prev) => [...prev, errorMsg]);
+    }
+
+    setShellExecuting(false);
+  }
 
   async function send() {
-    if (!sessionId || !input.trim() || streaming) return;
+    if (!sessionId || !input.trim() || streaming || shellExecuting) return;
     const prompt = input.trim();
 
     // Check for mode switching commands
@@ -39,11 +91,9 @@ export default function Terminal({
       if (mode === 'agent') {
         setMode('shell');
         setInput('');
-        return;
-      } else {
-        setInput('');
-        return;
       }
+      setInput('');
+      return;
     }
 
     if (prompt.startsWith('/kiana')) {
@@ -59,9 +109,7 @@ export default function Terminal({
     if (mode === 'agent') {
       await sendMessage({ text: prompt });
     } else {
-      // Shell mode - send to agent with shell execution
-      // For now, we'll use the same chat endpoint
-      await sendMessage({ text: prompt });
+      await executeShellCommand(prompt);
     }
   }
 
@@ -87,42 +135,69 @@ export default function Terminal({
         </div>
       </div>
       <div className="flex-1 overflow-auto p-3 space-y-2 scroll-thin">
-        {messages.map((m, i) => (
-          <div key={m.id ?? i} className="rounded-md p-2 bg-bg-subtle text-sm">
-            <div className="text-xs text-text-muted mb-1">{m.role.toUpperCase()}</div>
-            <div className="space-y-1">
-              {m.parts.map((part, idx) => {
-                if (isTextUIPart(part)) {
-                  return (
-                    <div key={idx} className="whitespace-pre-wrap text-xs leading-relaxed">
-                      {part.text}
-                    </div>
-                  );
-                }
-                if (isToolOrDynamicToolUIPart(part)) {
-                  const toolName = getToolOrDynamicToolName(part);
-                  if (part.state === 'input-streaming' || part.state === 'input-available') {
+        {mode === 'shell' ? (
+          // Shell mode messages
+          shellMessages.map((m) => (
+            <div key={m.id} className="rounded-md p-2 bg-bg-subtle text-sm">
+              <div className="text-xs text-text-muted mb-1">
+                {m.role.toUpperCase()}
+                {m.exitCode !== undefined && m.role === 'assistant' && ` [${m.exitCode}]`}
+              </div>
+              <div className="text-xs whitespace-pre-wrap leading-relaxed">
+                {m.command && (
+                  <>
+                    <span className="text-accent">$ </span>
+                    {m.command}
+                  </>
+                )}
+                {m.output && (
+                  <div className="mt-1 text-text-muted">{m.output}</div>
+                )}
+                {m.error && (
+                  <div className="mt-1 text-red-400">{m.error}</div>
+                )}
+              </div>
+            </div>
+          ))
+        ) : (
+          // Agent mode messages
+          messages.map((m, i) => (
+            <div key={m.id ?? i} className="rounded-md p-2 bg-bg-subtle text-sm">
+              <div className="text-xs text-text-muted mb-1">{m.role.toUpperCase()}</div>
+              <div className="space-y-1">
+                {m.parts.map((part, idx) => {
+                  if (isTextUIPart(part)) {
                     return (
-                      <div key={idx} className="text-xs text-text-muted">
-                        {toolName}: running…
+                      <div key={idx} className="whitespace-pre-wrap text-xs leading-relaxed">
+                        {part.text}
                       </div>
                     );
                   }
-                  if (part.state === 'output-available' || part.state === 'output-error') {
-                    return (
-                      <ToolResultView
-                        key={idx}
-                        toolName={toolName}
-                        toolPart={part as any}
-                      />
-                    );
+                  if (isToolOrDynamicToolUIPart(part)) {
+                    const toolName = getToolOrDynamicToolName(part);
+                    if (part.state === 'input-streaming' || part.state === 'input-available') {
+                      return (
+                        <div key={idx} className="text-xs text-text-muted">
+                          {toolName}: running…
+                        </div>
+                      );
+                    }
+                    if (part.state === 'output-available' || part.state === 'output-error') {
+                      return (
+                        <ToolResultView
+                          key={idx}
+                          toolName={toolName}
+                          toolPart={part as any}
+                        />
+                      );
+                    }
                   }
-                }
-                return null;
-              })}
+                  return null;
+                })}
+              </div>
             </div>
-          </div>
-        ))}
+          ))
+        )}
         <div ref={endRef} />
       </div>
       <div className="p-2 border-t border-bg-subtle">

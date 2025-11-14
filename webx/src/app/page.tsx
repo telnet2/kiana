@@ -9,7 +9,7 @@ import { useHorizontalResize, useVerticalResize } from '@/components/Resizable';
 export default function Page() {
   const [activeSession, setActiveSession] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [fileTreeRefresh, setFileTreeRefresh] = useState(0);
 
   const { ref: leftRef, width: leftWidth, Divider: VDivider1 } = useHorizontalResize(300);
   const { ref: topRef, height: topHeight, Divider: VDivider2 } = useHorizontalResize(200);
@@ -50,10 +50,11 @@ export default function Page() {
           </div>
           <VDivider2 />
           {/* File Explorer */}
-          <div className="flex-1 min-h-0">
+          <div className="flex-1 min-h-0" key={fileTreeRefresh}>
             <FileExplorer
               sessionId={activeSession}
               onSelectFile={setSelectedFile}
+              onFileCreated={() => setFileTreeRefresh((t) => t + 1)}
             />
           </div>
         </div>
