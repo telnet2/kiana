@@ -12,7 +12,7 @@ export default function Page() {
   const [fileTreeRefresh, setFileTreeRefresh] = useState(0);
 
   const { ref: leftRef, width: leftWidth, Divider: VDivider1 } = useHorizontalResize(300);
-  const { ref: topRef, height: topHeight, Divider: VDivider2 } = useHorizontalResize(200);
+  const { ref: topRef, height: topHeight, Divider: VDivider2 } = useVerticalResize(200);
   const { height: terminalHeight, Divider: HDivider } = useVerticalResize(220);
 
   // On first load: use most recent session if any; otherwise create one
@@ -68,7 +68,6 @@ export default function Page() {
           <FileEditor
             sessionId={activeSession}
             filePath={selectedFile}
-            onFileRefresh={() => setRefreshTrigger((t) => t + 1)}
           />
         </div>
       </div>
