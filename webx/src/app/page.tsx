@@ -36,8 +36,9 @@ export default function Page() {
   }, []);
 
   return (
-    <div className="h-screen w-screen bg-bg-panel">
-      <div className="h-full flex">
+    <div className="h-screen w-screen bg-bg-panel flex flex-col">
+      {/* Main Content: Left Sidebar + Editor */}
+      <div className="flex-1 min-h-0 flex">
         {/* Left Pane: Sessions + File Explorer */}
         <div ref={leftRef} style={{ width: leftWidth }} className="h-full bg-bg-panel border-r border-bg-subtle flex flex-col">
           {/* Sessions */}
