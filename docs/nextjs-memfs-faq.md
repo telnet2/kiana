@@ -379,88 +379,54 @@ When integrating Next.js with MemFS/MemShell:
 ## UI/UX Improvements
 
 ### Q: How do I make the file tree refresh after commands execute?
-**A:** Add file tree refresh callbacks to Terminal component. When shell commands complete, call the refresh:
+**A:** After shell commands or agent tool execution, increment a state trigger:
 
 ```typescript
-// In Terminal component
 const [fileTreeRefresh, setFileTreeRefresh] = useState(0);
+setFileTreeRefresh((t) => t + 1);  // After commands or agent finishes
 
-// After shell command execution
-setFileTreeRefresh((t) => t + 1);
-```
-
-And in parent component, trigger file tree remount:
-```typescript
+// Remount FileExplorer to refresh
 <div key={fileTreeRefresh}>
   <FileExplorer sessionId={activeSession} />
 </div>
 ```
 
-Also refresh after agent tool execution:
-```typescript
-// Refresh when agent finishes streaming
-useEffect(() => {
-  if (wasStreaming && !streaming && mode === 'agent') {
-    setFileTreeRefresh((t) => t + 1);
-  }
-  setWasStreaming(streaming);
-}, [streaming, mode]);
-```
-
 ### Q: How do I use Streamdown for markdown rendering?
-**A:** Streamdown is a drop-in replacement for react-markdown. Use custom components for styling:
+**A:** Use custom components for styling (drop-in react-markdown replacement):
 
 ```typescript
 import { Streamdown } from 'streamdown';
 
-const markdownComponents = {
+const components = {
   h1: ({ children }: any) => <h1 className="text-lg font-bold">{children}</h1>,
   strong: ({ children }: any) => <strong className="font-bold">{children}</strong>,
-  code: ({ children }: any) => (
-    <code className="bg-gray-800 text-gray-100 px-1.5 rounded">{children}</code>
-  ),
-  // ... more components
+  code: ({ children }: any) => <code className="bg-gray-800 text-gray-100 px-1.5 rounded">{children}</code>,
 };
 
-<Streamdown isAnimating={streaming} components={markdownComponents}>
-  {markdownText}
+<Streamdown isAnimating={streaming} components={components}>
+  {markdown}
 </Streamdown>
 ```
-
-The `isAnimating` prop controls whether text appears character-by-character as it streams.
 
 ### Q: Should I use Prose classes for markdown styling?
 **A:** No, Prose is for static HTML. For dynamic markdown from Streamdown, use custom components instead. Prose classes won't apply to Streamdown's rendered output because they target specific selectors that may not match the component structure.
 
 ### Q: How do I move components to a modal dialog?
-**A:** Create a modal wrapper component:
+**A:** Wrap content in a fixed overlay and handle escape key:
 
 ```typescript
-export default function FileEditorModal({
-  isOpen,
-  onClose,
-  filePath,
-  sessionId,
-}: {
-  isOpen: boolean;
-  onClose: () => void;
-  filePath?: string | null;
-  sessionId?: string | null;
-}) {
+export default function Modal({ isOpen, onClose, children }: any) {
   useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
+    const handleEscape = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
     if (isOpen) document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
-
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div className="w-11/12 h-5/6 bg-bg-panel rounded-lg overflow-hidden flex flex-col">
-        {/* Modal content */}
+        {children}
       </div>
     </div>
   );
@@ -470,65 +436,45 @@ export default function FileEditorModal({
 ## Command Line Tool Enhancements
 
 ### Q: How do I add extended regex support to grep?
-**A:** Add the `-E` flag to the argument parser:
+**A:** Add `-E` flag to argument parser:
 
 ```typescript
 parser.add_argument('-E', '--extended-regexp', {
   action: 'store_true',
-  help: 'Interpret patterns as extended regular expressions'
+  help: 'Extended regex patterns'
 });
 ```
 
-Now grep supports patterns like:
-```bash
-grep -E "(pattern1|pattern2)" file.txt
-```
+Then grep supports: `grep -E "(pattern1|pattern2)" file.txt`
 
-### Q: How do I add shorthand syntax support to head?
-**A:** Pre-process arguments to convert `-NUM` to `-n NUM`:
+### Q: How do I add shorthand syntax to head?
+**A:** Pre-process `-NUM` to `-n NUM`:
 
 ```typescript
-const processedArgs = args.map(arg => {
-  if (/^-\d+$/.test(arg)) {
-    return ['-n', arg.slice(1)];
-  }
-  return [arg];
-}).flat();
-
-const parsed = context.parseArgsWithHelp(parser, processedArgs);
+const processed = args.map(arg =>
+  /^-\d+$/.test(arg) ? ['-n', arg.slice(1)] : [arg]
+).flat();
+const parsed = context.parseArgsWithHelp(parser, processed);
 ```
 
-Now head supports:
-```bash
-head -20 file.txt  # Same as: head -n 20 file.txt
-```
+Then head supports: `head -20 file.txt` (same as `head -n 20`)
 
-### Q: How do I add OR conditions to find command?
-**A:** Manually parse arguments to support `-o` operator:
+### Q: How do I add OR conditions to find?
+**A:** Collect multiple patterns and match any:
 
 ```typescript
-let namePatterns: RegExp[] = [];
-
+let patterns: RegExp[] = [];
 while (i < args.length) {
-  if (arg === '-name' && i + 1 < args.length) {
-    namePatterns.push(new RegExp(pattern));
-    i += 2;
-  } else if (arg === '-o') {
-    // Skip -o, it's just a separator
-    i += 1;
-  }
+  if (arg === '-name') patterns.push(new RegExp(args[++i]));
+  else if (arg !== '-o') i++;
+  else i++;
 }
-
-// Match any pattern (OR logic)
-if (namePatterns.length > 0) {
-  shouldInclude = namePatterns.some(pattern => pattern.test(current.name));
+if (patterns.length > 0) {
+  shouldInclude = patterns.some(p => p.test(current.name));
 }
 ```
 
-Now find supports:
-```bash
-find . -name "*.sql" -o -name "*.db" -o -name "*.json"
-```
+Then find supports: `find . -name "*.sql" -o -name "*.db"`
 
 ---
 
