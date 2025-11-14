@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { getSessionStore } from '@/server/sessionStore';
 
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 type Node = {
   type: 'file' | 'directory';
