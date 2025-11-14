@@ -1,5 +1,4 @@
-import { createMemTools } from '@byted/kiana';
-import type { MemTools } from '@byted/kiana';
+import { MemTools } from '@byted/kiana';
 
 interface SessionRecord {
   id: string;
@@ -20,7 +19,7 @@ class SessionStore {
 
   create(): SessionRecord {
     const id = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    const memtools = createMemTools();
+    const memtools = new MemTools();
     const record: SessionRecord = {
       id,
       memtools,
