@@ -1,5 +1,3 @@
-'use server';
-
 import { createMemTools } from '@byted/kiana';
 import type { MemTools } from '@byted/kiana';
 
