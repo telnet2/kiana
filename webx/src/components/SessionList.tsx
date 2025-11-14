@@ -12,6 +12,7 @@ export default function SessionList({
 }) {
   const [sessions, setSessions] = useState<{ id: string; createdAt: string }[]>([]);
   const [loading, setLoading] = useState(false);
+  const [creating, setCreating] = useState(false);
 
   async function loadSessions() {
     setLoading(true);
@@ -30,21 +31,30 @@ export default function SessionList({
   }, []);
 
   async function createSession() {
+    setCreating(true);
     try {
-      const res = await fetch('/api/sessions', { method: 'POST' });
+      const res = await fetch('/api/sessions', { method: 'POST', cache: 'no-store' });
+      if (!res.ok) {
+        throw new Error(`Failed to create session: ${res.status}`);
+      }
       const data = await res.json();
+      if (!data.session || !data.session.id) {
+        throw new Error('Invalid response from server');
+      }
       await loadSessions();
       onCreate(data.session);
     } catch (e) {
       console.error('Error creating session:', e);
+    } finally {
+      setCreating(false);
     }
   }
 
   return (
     <div className="h-full flex flex-col">
       <div className="p-2 border-b border-bg-subtle">
-        <button className="btn w-full" onClick={createSession}>
-          New Session
+        <button className="btn w-full" onClick={createSession} disabled={creating || loading}>
+          {creating ? 'Creating…' : 'New Session'}
         </button>
       </div>
       <div className="flex-1 overflow-auto scroll-thin">
