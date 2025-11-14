@@ -119,14 +119,16 @@ const memtools = new MemTools();
 ```
 
 ### Q: How do I get the shell from MemTools?
-**A:** Call `getShell()` on the MemTools instance:
+**A:** Access the `shell` property directly (it's not a method):
 
 ```typescript
 const memtools = new MemTools();
-const shell = memtools.getShell();
+const shell = memtools.shell;  // Property, not a method!
 const result = await shell.exec('ls -la');
 console.log(result.stdout);
 ```
+
+Note: `shell` is a direct property on MemTools, not a getter method.
 
 ### Q: What does createKianaAgent need?
 **A:** Pass in the memtools instance and configuration:
