@@ -9,23 +9,23 @@ export async function GET(req: NextRequest) {
   const path = req.nextUrl.searchParams.get('path');
 
   if (!sessionId || !path) {
-    return new Response('Missing sessionId or path', { status: 400 });
+    return Response.json({ error: 'Missing sessionId or path' }, { status: 400 });
   }
 
   const store = getSessionStore();
   const rec = store.get(sessionId);
-  if (!rec) return new Response('Session not found', { status: 404 });
+  if (!rec) return Response.json({ error: 'Session not found' }, { status: 404 });
 
   try {
     const fs = rec.memtools.getFileSystem();
     const node: any = fs.resolvePath(path);
     if (!node || !node.isFile()) {
-      return new Response('File not found', { status: 404 });
+      return Response.json({ error: 'File not found' }, { status: 404 });
     }
     const content = node.read();
     return Response.json({ content });
   } catch (e) {
-    return new Response(`Error reading file: ${(e as Error).message}`, { status: 500 });
+    return Response.json({ error: `Error reading file: ${(e as Error).message}` }, { status: 500 });
   }
 }
 
@@ -35,18 +35,29 @@ export async function PUT(req: NextRequest) {
   const { path, content } = body;
 
   if (!sessionId || !path) {
-    return new Response('Missing sessionId or path', { status: 400 });
+    return Response.json({ error: 'Missing sessionId or path' }, { status: 400 });
   }
 
   const store = getSessionStore();
   const rec = store.get(sessionId);
-  if (!rec) return new Response('Session not found', { status: 404 });
+  if (!rec) return Response.json({ error: 'Session not found' }, { status: 404 });
 
   try {
     const fs = rec.memtools.getFileSystem();
-    fs.writeFileSync(path, content ?? '');
+    const node: any = fs.resolvePath(path);
+
+    if (node) {
+      if (!node.isFile()) {
+        return Response.json({ error: 'Path is not a file' }, { status: 400 });
+      }
+      node.write(content ?? '');
+    } else {
+      // Create the file if it doesn't exist
+      fs.createFile(path, content ?? '');
+    }
+
     return Response.json({ success: true });
   } catch (e) {
-    return new Response(`Error writing file: ${(e as Error).message}`, { status: 500 });
+    return Response.json({ error: `Error writing file: ${(e as Error).message}` }, { status: 500 });
   }
 }

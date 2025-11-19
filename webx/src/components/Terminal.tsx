@@ -1,9 +1,10 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import { useChat } from '@ai-sdk/react';
-import { isTextUIPart, isToolOrDynamicToolUIPart, getToolOrDynamicToolName, type UIMessage } from 'ai';
+import { isTextUIPart, isToolOrDynamicToolUIPart, getToolOrDynamicToolName, isDataUIPart, type UIMessage } from 'ai';
 import { Streamdown } from 'streamdown';
 import ToolResultView from './ToolResultView';
+import { WeatherDisplay, WeatherData } from './WeatherDisplay';
 
 interface ShellMessage {
   id: string;
@@ -242,8 +243,42 @@ export default function Terminal({
                       </div>
                     );
                   }
+                  // // Handle data-weather parts (generative UI for weather)
+                  // if (isDataUIPart(part) && part.type === 'data-weather') {
+                  //   const weatherData = (part as any).data;
+                  //   console.log('[Terminal] Rendering weather data:', {
+                  //     city: weatherData.city,
+                  //     temperature: weatherData.temperature,
+                  //     description: weatherData.description,
+                  //   });
+                  //   return (
+                  //     <div key={idx}>
+                  //       <WeatherDisplay weather={weatherData} />
+                  //     </div>
+                  //   );
+                  // }
                   if (isToolOrDynamicToolUIPart(part)) {
                     const toolName = getToolOrDynamicToolName(part);
+
+                    // Handle displayWeather tool - render weather UI when tool is available/completed
+                    if (toolName === 'displayWeather') {
+                      const toolPart = part;
+                      if (toolPart.state === 'output-available') {
+                        const weatherData = toolPart.input as WeatherData;
+                        if (weatherData) {
+                          return (
+                            <div key={idx}>
+                              <WeatherDisplay weather={weatherData} />
+                            </div>
+                          );
+                        }
+                      }
+                      // Skip rendering tool info for displayWeather - just show the UI
+                      if (toolPart.state === 'input-streaming') {
+                        return null;
+                      }
+                    }
+
                     if (part.state === 'input-streaming' || part.state === 'input-available') {
                       return (
                         <div key={idx} className="text-xs text-text-muted">

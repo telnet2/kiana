@@ -25,7 +25,14 @@ export default function FileEditor({
     setLoading(true);
     setIsDirty(false);
     fetch(`/api/fs/file?sessionId=${encodeURIComponent(sessionId)}&path=${encodeURIComponent(filePath)}`)
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) {
+          return res.json().then((data) => {
+            throw new Error(data.error || `HTTP ${res.status}: ${res.statusText}`);
+          });
+        }
+        return res.json();
+      })
       .then((data) => setContent(data.content ?? ''))
       .catch((e) => {
         console.error('Error loading file:', e);

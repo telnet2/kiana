@@ -9,3 +9,4 @@ export * from './JSEngine';
 export * from './MemFSAdapter';
 export * from './Spinner';
 export * from './Writer';
+export * from './tools';

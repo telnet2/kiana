@@ -10,22 +10,22 @@ export async function POST(req: NextRequest) {
   const { path, type = 'file' } = body;
 
   if (!sessionId || !path) {
-    return new Response('Missing sessionId or path', { status: 400 });
+    return Response.json({ error: 'Missing sessionId or path' }, { status: 400 });
   }
 
   const store = getSessionStore();
   const rec = store.get(sessionId);
-  if (!rec) return new Response('Session not found', { status: 404 });
+  if (!rec) return Response.json({ error: 'Session not found' }, { status: 404 });
 
   try {
     const fs = rec.memtools.getFileSystem();
     if (type === 'directory') {
       fs.createDirectories(path);
     } else {
-      fs.writeFileSync(path, '');
+      fs.createFile(path, '');
     }
     return Response.json({ success: true });
   } catch (e) {
-    return new Response(`Error creating ${type}: ${(e as Error).message}`, { status: 500 });
+    return Response.json({ error: `Error creating ${type}: ${(e as Error).message}` }, { status: 500 });
   }
 }

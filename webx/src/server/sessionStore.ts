@@ -1,4 +1,4 @@
-import { MemTools } from '@byted/kiana';
+import { MemTools, DEFAULT_SYSTEM_PROMPT } from '@byted/kiana';
 
 interface SessionRecord {
   id: string;
@@ -20,6 +20,16 @@ class SessionStore {
   create(): SessionRecord {
     const id = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const memtools = new MemTools();
+
+    // Seed the default system prompt as _system_prompt file
+    try {
+      const fs = memtools.getFileSystem();
+      fs.createFile('/_system_prompt', DEFAULT_SYSTEM_PROMPT);
+    } catch (e) {
+      // If file creation fails, continue without it - the chat route will use the default
+      console.error('Failed to seed _system_prompt file:', e);
+    }
+
     const record: SessionRecord = {
       id,
       memtools,

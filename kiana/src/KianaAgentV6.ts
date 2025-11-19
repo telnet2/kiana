@@ -38,20 +38,30 @@ export interface KianaOptionsV6 {
   arkConfig?: ARKConfig;
   /** Enable streaming mode */
   stream?: boolean;
+  /** Additional tools to inject into the agent */
+  additionalTools?: Record<string, any>;
 }
 
 /**
  * Default system prompt for Kiana agent
  * (Preserved from original implementation)
  */
-export const DEFAULT_SYSTEM_PROMPT = `You are Kiana, a focused Q&A assistant for a Large Language Model (LLM) with access to a read-only in-memory filesystem.
+export const DEFAULT_SYSTEM_PROMPT = `You are Kiana, a focused Q&A assistant for a Large Language Model (LLM) with access to a read-only in-memory filesystem and additional tools.
 
 Primary role:
 - Answer questions clearly and concisely.
 - Use the filesystem only to read and inspect information; do not modify it.
+- When asked about weather, use the getWeather tool to fetch real weather data.
 
 Tool access:
-- memfs_exec executes shell commands against the in-memory filesystem.
+- memfs_exec: executes shell commands against the in-memory filesystem (read-only only).
+- getWeather: fetches current weather information for any city using OpenWeatherMap API.
+- displayWeather: displays weather information as a beautiful interactive UI component.
+
+When answering weather questions:
+1. Call getWeather with the city name to fetch real weather data
+2. Call displayWeather with the returned weather data to render it as an interactive UI card
+3. The client will automatically display the weather in a beautiful, visually appealing format with emoji icons, temperature, humidity, and wind speed
 
 Allowed commands (read-only):
 - File/dir inspection: ls, pwd, cd
@@ -142,6 +152,8 @@ const createMemfsTool = (memtools: MemTools) =>
 
 /**
  * Create Kiana agent with AI SDK v6
+ * @param memtools - Memory tools for filesystem access
+ * @param options - Configuration options including additional tools
  */
 export const createKianaAgent = async (
   memtools: MemTools,
@@ -153,7 +165,7 @@ export const createKianaAgent = async (
 
   // Setup model provider
   let model;
-  
+
   if (options.arkConfig) {
     if (verbose) {
       console.log(`[Kiana] Using ARK model: ${options.arkConfig.modelId}`);
@@ -170,16 +182,29 @@ export const createKianaAgent = async (
     model = openai(options.model || 'gpt-4o-mini');
   }
 
+  // Build tools object: always include memfs_exec + any additional tools
+  const toolsObject: Record<string, any> = {
+    memfs_exec: createMemfsTool(memtools),
+  };
+
+  // Merge additional tools if provided
+  if (options.additionalTools) {
+    Object.assign(toolsObject, options.additionalTools);
+    if (verbose) {
+      const toolNames = Object.keys(options.additionalTools);
+      console.log(`[Kiana] Injected additional tools: ${toolNames.join(', ')}`);
+    }
+  }
+
   if (verbose) {
     console.log(`[Kiana] Creating ToolLoopAgent with maxRounds: ${maxRounds}`);
+    console.log(`[Kiana] Available tools: ${Object.keys(toolsObject).join(', ')}`);
   }
 
   return new ToolLoopAgent({
     model,
     instructions: systemPrompt,
-    tools: {
-      memfs_exec: createMemfsTool(memtools),
-    },
+    tools: toolsObject,
     stopWhen: stepCountIs(maxRounds),
   });
 };
@@ -261,12 +286,15 @@ export async function runKianaV6(
       throw new Error('Instruction is required');
     }
 
-    // Create the agent
+    // Create the agent with additional tools if provided
     const agent = await createKianaAgent(memtools, options);
-    
+
     if (options.verbose) {
       console.log('[Kiana] Agent created successfully');
       console.log(`[Kiana] Instruction: ${options.instruction}`);
+      if (options.additionalTools) {
+        console.log(`[Kiana] Additional tools: ${Object.keys(options.additionalTools).join(', ')}`);
+      }
     }
 
     // Use the instruction
