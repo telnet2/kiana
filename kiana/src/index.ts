@@ -10,3 +10,9 @@ export * from './MemFSAdapter';
 export * from './Spinner';
 export * from './Writer';
 export * from './tools';
+
+// VFS Integration
+export { VFSMemFS, VFSMemFSOptions, VFSMemFSStatistics } from './VFSMemFS';
+export { VFSMemShell, VFSMemShellOptions, VFSStatus } from './VFSMemShell';
+export { VFSMemSession, VFSMemSessionOptions, SessionData } from './VFSMemSession';
+export * from './vfs-types';

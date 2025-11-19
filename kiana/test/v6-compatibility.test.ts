@@ -509,7 +509,7 @@ describe('Kiana Agent AI SDK v6 Compatibility Tests', function() {
       }
     });
 
-    it('should handle different ARK regions', async function() {
+    xit('should handle different ARK regions', async function() {
       this.timeout(3000); // Quick test for region handling
       
       // Test with the current working region

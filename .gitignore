@@ -92,9 +92,6 @@ Thumbs.db
 # Test artifacts
 test-results/
 *.test.js
-*.test.ts
-!src/**/*.test.ts
-!test/**/*.test.ts
 
 # Build artifacts
 build/

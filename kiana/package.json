@@ -18,6 +18,7 @@
     "dependencies": {
         "@ai-sdk/openai": "^3.0.0-beta.51",
         "@ai-sdk/openai-compatible": "^2.0.0-beta.32",
+        "@byted/crystal-vfs": "^2.3.1",
         "ai": "^6.0.0-beta.94",
         "argparse": "^2.0.1",
         "coffee-script": "^1.12.7",
@@ -56,6 +57,6 @@
         "copy:memsh": "sed 's|require(\"./MemREPL\")|require(\"./MemREPL.js\")|g' bin/memsh.js | sed 's|require(\"./KianaAgentV6\")|require(\"./KianaAgentV6.js\")|g' > bin/memsh && chmod +x bin/memsh && rm -f bin/memsh.js",
         "memsh": "npm run build:memsh && ./bin/memsh",
         "clean": "rm -rf lib bin",
-        "test": "npm run build && npx mocha --require ts-node/register test/**/*.test.ts"
+        "test": "npm run build && npx mocha --require ts-node/register test/**/*.test.{ts,js}"
     }
 }
