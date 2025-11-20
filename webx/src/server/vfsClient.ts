@@ -50,17 +50,25 @@ export class VFSClientAdapter implements VFSClient2 {
   private async ensureInitialized(): Promise<void> {
     if (this.initialized) return;
 
-    // Dynamically import crystal-vfs at runtime
-    // The module is installed in node_modules as a file: protocol dependency
-    const vfsModule = await import('@byted/crystal-vfs');
-    const VFSClass = (vfsModule as any).VFS;
+    try {
+      // Dynamically import crystal-vfs at runtime
+      const vfsModule = await import('@byted/crystal-vfs');
+      const VFSClass = vfsModule.VFS || (vfsModule as any).default?.VFS || (vfsModule as any).VFS;
 
-    this.vfs = new VFSClass({
-      baseURL: this.baseURL,
-      token: this.token,
-    });
-    console.log('✓ Crystal VFS initialized successfully');
-    this.initialized = true;
+      if (!VFSClass) {
+        throw new Error('VFS class not found in @byted/crystal-vfs module');
+      }
+
+      this.vfs = new VFSClass({
+        baseURL: this.baseURL,
+        token: this.token,
+      });
+      console.log('✓ Crystal VFS initialized successfully');
+      this.initialized = true;
+    } catch (error) {
+      console.error('Failed to initialize Crystal VFS:', error);
+      throw error;
+    }
   }
 
   async readFile(path: string, encoding?: string): Promise<string | Uint8Array> {

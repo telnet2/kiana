@@ -194,6 +194,29 @@ class SessionStore {
   delete(id: string): boolean {
     return this.sessions.delete(id);
   }
+
+  async deleteWithCleanup(id: string): Promise<void> {
+    const vfs = getVFSClient();
+
+    // Remove session metadata file
+    try {
+      const sessionPath = `/sessions/session-${id}.json`;
+      await vfs.unlink(sessionPath);
+    } catch (error) {
+      console.warn(`Failed to delete session metadata ${id}:`, error);
+    }
+
+    // Remove session directory and all its contents
+    try {
+      const sessionDir = `/kiana/session-${id}`;
+      await vfs.rm(sessionDir, { recursive: true });
+    } catch (error) {
+      console.warn(`Failed to delete session directory ${id}:`, error);
+    }
+
+    // Remove from in-memory store
+    this.sessions.delete(id);
+  }
 }
 
 // Use globalThis to ensure singleton pattern survives module reloads in Next.js dev mode
