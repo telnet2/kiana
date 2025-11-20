@@ -37,68 +37,69 @@ export interface VFSDirectoryEntry {
  */
 export class VFSClientAdapter implements VFSClient2 {
   private vfs: any; // crystal-vfs instance
+  private baseURL: string;
+  private token: string;
+  private initialized = false;
 
   constructor(baseURL: string, token: string) {
-    try {
-      // Try to load the VFS class from dynamic require
-      // It's installed as a peer dependency in kiana
-      const vfsModule = (require as any)('@byted/crystal-vfs');
-      const VFSClass = vfsModule.VFS || vfsModule.default;
-      this.vfs = new VFSClass({
-        baseURL,
-        token,
-      });
-    } catch (error) {
-      console.warn('⚠️  @byted/crystal-vfs not available, using mock VFS for development');
-      // Fall back gracefully - return a mock VFS that logs warnings
-      this.vfs = this.createMockVFS();
-    }
+    this.baseURL = baseURL;
+    this.token = token;
+    // Don't initialize in constructor, do it lazily on first use
   }
 
-  private createMockVFS() {
-    console.warn('⚠️  Running with mock VFS - @byted/crystal-vfs not available');
-    console.warn('⚠️  Files will NOT be persisted to external VFS');
-    return {
-      readFile: async () => { throw new Error('Mock VFS not configured'); },
-      writeFile: async () => { console.warn('Mock VFS: writeFile called but not implemented'); },
-      writeFileText: async () => { console.warn('Mock VFS: writeFileText called but not implemented'); },
-      mkdir: async () => { console.warn('Mock VFS: mkdir called but not implemented'); },
-      readdir: async () => [],
-      stat: async () => { throw new Error('Mock VFS not configured'); },
-      unlink: async () => { console.warn('Mock VFS: unlink called but not implemented'); },
-      rm: async () => { console.warn('Mock VFS: rm called but not implemented'); },
-    };
+  private async ensureInitialized(): Promise<void> {
+    if (this.initialized) return;
+
+    // Dynamically import crystal-vfs at runtime
+    // The module is installed in node_modules as a file: protocol dependency
+    const vfsModule = await import('@byted/crystal-vfs');
+    const VFSClass = (vfsModule as any).VFS;
+
+    this.vfs = new VFSClass({
+      baseURL: this.baseURL,
+      token: this.token,
+    });
+    console.log('✓ Crystal VFS initialized successfully');
+    this.initialized = true;
   }
 
   async readFile(path: string, encoding?: string): Promise<string | Uint8Array> {
+    await this.ensureInitialized();
     return this.vfs.readFile(path, encoding);
   }
 
   async writeFile(path: string, data: string | Uint8Array, options?: any): Promise<void> {
+    await this.ensureInitialized();
     return this.vfs.writeFile(path, data, options);
   }
 
   async writeFileText(path: string, text: string, options?: any): Promise<void> {
+    await this.ensureInitialized();
     return this.vfs.writeFileText(path, text, options);
   }
 
   async mkdir(path: string, options?: { recursive?: boolean }): Promise<void> {
+    await this.ensureInitialized();
     return this.vfs.mkdir(path, options);
   }
 
   async readdir(path: string, options?: { withFileTypes?: boolean }): Promise<string[] | VFSDirectoryEntry[]> {
+    await this.ensureInitialized();
     return this.vfs.readdir(path, options);
   }
 
   async stat(path: string): Promise<VFSFileStat> {
+    await this.ensureInitialized();
     return this.vfs.stat(path);
   }
 
   async unlink(path: string): Promise<void> {
+    await this.ensureInitialized();
     return this.vfs.unlink(path);
   }
 
   async rm(path: string, options?: { recursive?: boolean }): Promise<void> {
+    await this.ensureInitialized();
     return this.vfs.rm(path, options);
   }
 }
