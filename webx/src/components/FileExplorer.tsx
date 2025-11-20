@@ -200,7 +200,7 @@ export default function FileExplorer({
             multiple
             className="hidden"
             onChange={onImport}
-            {...{ webkitdirectory: true, directory: true } as any}
+            {...{ webkitdirectory: "true", directory: "true" } as any}
           />
           Import Folder
         </label>

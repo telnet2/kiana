@@ -42,26 +42,14 @@ export class VFSClientAdapter implements VFSClient2 {
     try {
       // Try to load the VFS class from dynamic require
       // It's installed as a peer dependency in kiana
-      try {
-        const vfsModule = (require as any)('@byted/crystal-vfs');
-        const VFSClass = vfsModule.VFS || vfsModule.default;
-        this.vfs = new VFSClass({
-          baseURL,
-          token,
-        });
-      } catch (e) {
-        // Fallback: try to import from kiana's node_modules
-        const path = require('path');
-        const vfsPath = path.join(__dirname, '../../kiana/node_modules/@byted/crystal-vfs');
-        const vfsModule = (require as any)(vfsPath);
-        const VFSClass = vfsModule.VFS || vfsModule.default;
-        this.vfs = new VFSClass({
-          baseURL,
-          token,
-        });
-      }
+      const vfsModule = (require as any)('@byted/crystal-vfs');
+      const VFSClass = vfsModule.VFS || vfsModule.default;
+      this.vfs = new VFSClass({
+        baseURL,
+        token,
+      });
     } catch (error) {
-      console.error('Failed to initialize VFS client:', error);
+      console.warn('⚠️  @byted/crystal-vfs not available, using mock VFS for development');
       // Fall back gracefully - return a mock VFS that logs warnings
       this.vfs = this.createMockVFS();
     }
