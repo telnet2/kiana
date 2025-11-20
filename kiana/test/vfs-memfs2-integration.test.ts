@@ -15,10 +15,9 @@ import {
   VFSClient2,
   VFSMemFS2Options,
   VFSMemFS2Statistics,
-  VFSMemFS2Error,
-  MemFile2,
-  MemDirectory2
+  VFSMemFS2Error
 } from '../src/VFSMemFS2';
+import { MemFile, MemDirectory } from '../src/MemFS';
 
 describe('VFSMemFS2 Integration with Real VFS Server', function() {
   this.timeout(30000); // 30 second timeout for all tests
@@ -107,7 +106,7 @@ describe('VFSMemFS2 Integration with Real VFS Server', function() {
       });
 
       // Create a file - this should sync to VFS
-      await vfsMemFS.createFile('/connection-test.txt', 'test content');
+      await vfsMemFS.createFileAsync('/connection-test.txt', 'test content');
 
       // Verify on real VFS
       const vfsContent = await vfs.readFile(`${testDirectory}/connection-test.txt`, 'utf8');
@@ -127,9 +126,9 @@ describe('VFSMemFS2 Integration with Real VFS Server', function() {
 
     it('should create and sync file immediately', async () => {
       const content = `Sync test - ${Date.now()}`;
-      const file = await vfsMemFS.createFile('/sync-file.txt', content);
+      const file = await vfsMemFS.createFileAsync('/sync-file.txt', content);
 
-      expect(file).to.be.instanceOf(MemFile2);
+      expect(file).to.be.instanceOf(MemFile);
       expect(file.readAsString()).to.equal(content);
 
       // Verify on VFS - no delay needed!
@@ -146,35 +145,35 @@ describe('VFSMemFS2 Integration with Real VFS Server', function() {
       const initial = 'initial content';
       const updated = 'updated content';
 
-      await vfsMemFS.createFile('/update-test.txt', initial);
-      await vfsMemFS.writeFile('/update-test.txt', updated);
+      await vfsMemFS.createFileAsync('/update-test.txt', initial);
+      await vfsMemFS.writeFileAsync('/update-test.txt', updated);
 
       // Verify updated content on VFS
       const vfsContent = await vfs.readFile(`${testDirectory}/update-test.txt`, 'utf8');
       expect(vfsContent).to.equal(updated);
 
       // Verify in memory
-      const memContent = vfsMemFS.readFile('/update-test.txt', 'utf8');
+      const memContent = vfsMemFS.readFileSync('/update-test.txt', 'utf8');
       expect(memContent).to.equal(updated);
     });
 
     it('should append to file and sync', async () => {
-      await vfsMemFS.createFile('/append-test.txt', 'Hello');
-      await vfsMemFS.appendFile('/append-test.txt', ' World');
+      await vfsMemFS.createFileAsync('/append-test.txt', 'Hello');
+      await vfsMemFS.appendFileAsync('/append-test.txt', ' World');
 
       const vfsContent = await vfs.readFile(`${testDirectory}/append-test.txt`, 'utf8');
       expect(vfsContent).to.equal('Hello World');
     });
 
     it('should delete file and sync to VFS', async () => {
-      await vfsMemFS.createFile('/delete-me.txt', 'to be deleted');
+      await vfsMemFS.createFileAsync('/delete-me.txt', 'to be deleted');
 
       // Verify file exists on VFS
       const stat = await vfs.stat(`${testDirectory}/delete-me.txt`);
       expect(stat.isFile()).to.be.true;
 
       // Delete through VFSMemFS2
-      await vfsMemFS.remove('/delete-me.txt');
+      await vfsMemFS.removeAsync('/delete-me.txt');
 
       // Verify deleted from VFS
       try {
@@ -192,7 +191,7 @@ describe('VFSMemFS2 Integration with Real VFS Server', function() {
       // Create binary data
       const binaryData = Buffer.from([0x00, 0x01, 0x02, 0xFF, 0xFE, 0xFD]);
 
-      await vfsMemFS.createFile('/binary.bin', binaryData);
+      await vfsMemFS.createFileAsync('/binary.bin', binaryData);
 
       // Read from memory
       const memBuffer = vfsMemFS.readFile('/binary.bin') as Buffer;
@@ -208,7 +207,7 @@ describe('VFSMemFS2 Integration with Real VFS Server', function() {
     it('should handle UTF-8 text with special characters', async () => {
       const content = '你好世界 🌍 مرحبا العالم';
 
-      await vfsMemFS.createFile('/unicode.txt', content);
+      await vfsMemFS.createFileAsync('/unicode.txt', content);
 
       const vfsContent = await vfs.readFile(`${testDirectory}/unicode.txt`, 'utf8');
       expect(vfsContent).to.equal(content);
@@ -225,9 +224,9 @@ describe('VFSMemFS2 Integration with Real VFS Server', function() {
     });
 
     it('should create directory and sync', async () => {
-      const dir = await vfsMemFS.createDirectory('/my-dir');
+      const dir = await vfsMemFS.createDirectoryAsync('/my-dir');
 
-      expect(dir).to.be.instanceOf(MemDirectory2);
+      expect(dir).to.be.instanceOf(MemDirectory);
 
       // Verify on VFS
       const stat = await vfs.stat(`${testDirectory}/my-dir`);
@@ -235,7 +234,7 @@ describe('VFSMemFS2 Integration with Real VFS Server', function() {
     });
 
     it('should create nested directories', async () => {
-      const deepDir = await vfsMemFS.createDirectories('/a/b/c/d');
+      const deepDir = await vfsMemFS.createDirectoriesAsync('/a/b/c/d');
 
       expect(deepDir.name).to.equal('d');
 
@@ -247,20 +246,20 @@ describe('VFSMemFS2 Integration with Real VFS Server', function() {
     });
 
     it('should create files in nested directories', async () => {
-      await vfsMemFS.createDirectories('/nested/path');
-      await vfsMemFS.createFile('/nested/path/file.txt', 'nested content');
+      await vfsMemFS.createDirectoriesAsync('/nested/path');
+      await vfsMemFS.createFileAsync('/nested/path/file.txt', 'nested content');
 
       const content = await vfs.readFile(`${testDirectory}/nested/path/file.txt`, 'utf8');
       expect(content).to.equal('nested content');
     });
 
     it('should delete directory recursively', async () => {
-      await vfsMemFS.createDirectories('/to-delete/sub');
-      await vfsMemFS.createFile('/to-delete/file1.txt', 'file1');
-      await vfsMemFS.createFile('/to-delete/sub/file2.txt', 'file2');
+      await vfsMemFS.createDirectoriesAsync('/to-delete/sub');
+      await vfsMemFS.createFileAsync('/to-delete/file1.txt', 'file1');
+      await vfsMemFS.createFileAsync('/to-delete/sub/file2.txt', 'file2');
 
       // Delete recursively
-      await vfsMemFS.remove('/to-delete', true);
+      await vfsMemFS.removeAsync('/to-delete', true);
 
       // Verify deleted from VFS
       try {
@@ -272,10 +271,10 @@ describe('VFSMemFS2 Integration with Real VFS Server', function() {
     });
 
     it('should list directory contents', async () => {
-      await vfsMemFS.createDirectory('/list-test');
-      await vfsMemFS.createFile('/list-test/file1.txt', 'a');
-      await vfsMemFS.createFile('/list-test/file2.txt', 'b');
-      await vfsMemFS.createDirectory('/list-test/subdir');
+      await vfsMemFS.createDirectoryAsync('/list-test');
+      await vfsMemFS.createFileAsync('/list-test/file1.txt', 'a');
+      await vfsMemFS.createFileAsync('/list-test/file2.txt', 'b');
+      await vfsMemFS.createDirectoryAsync('/list-test/subdir');
 
       const contents = vfsMemFS.listDirectory('/list-test');
 
@@ -297,7 +296,7 @@ describe('VFSMemFS2 Integration with Real VFS Server', function() {
     });
 
     it('should buffer writes and not sync until flush', async () => {
-      await flushVFS.createFile('/buffered.txt', 'buffered content');
+      await flushVFS.createFileAsync('/buffered.txt', 'buffered content');
 
       // Stats should show dirty file
       let stats = flushVFS.getStatistics();
@@ -325,9 +324,9 @@ describe('VFSMemFS2 Integration with Real VFS Server', function() {
 
     it('should handle multiple buffered operations', async () => {
       await flushVFS.createDirectories('/batch/sub');
-      await flushVFS.createFile('/batch/file1.txt', 'one');
-      await flushVFS.createFile('/batch/file2.txt', 'two');
-      await flushVFS.createFile('/batch/sub/file3.txt', 'three');
+      await flushVFS.createFileAsync('/batch/file1.txt', 'one');
+      await flushVFS.createFileAsync('/batch/file2.txt', 'two');
+      await flushVFS.createFileAsync('/batch/sub/file3.txt', 'three');
 
       expect(flushVFS.getStatistics().dirtyFiles).to.be.at.least(3);
 
@@ -346,11 +345,11 @@ describe('VFSMemFS2 Integration with Real VFS Server', function() {
 
     it('should handle deletions in flush mode', async () => {
       // Create and flush first
-      await flushVFS.createFile('/to-delete.txt', 'delete me');
+      await flushVFS.createFileAsync('/to-delete.txt', 'delete me');
       await flushVFS.flush();
 
       // Now delete
-      await flushVFS.remove('/to-delete.txt');
+      await flushVFS.removeAsync('/to-delete.txt');
 
       // File should still exist on VFS
       const stat = await vfs.stat(`${testDirectory}/to-delete.txt`);
@@ -372,13 +371,13 @@ describe('VFSMemFS2 Integration with Real VFS Server', function() {
     });
 
     it('should handle updates correctly', async () => {
-      await flushVFS.createFile('/update.txt', 'v1');
+      await flushVFS.createFileAsync('/update.txt', 'v1');
       await flushVFS.flush();
 
       // Update multiple times before flushing
-      await flushVFS.writeFile('/update.txt', 'v2');
-      await flushVFS.writeFile('/update.txt', 'v3');
-      await flushVFS.writeFile('/update.txt', 'final');
+      await flushVFS.writeFileAsync('/update.txt', 'v2');
+      await flushVFS.writeFileAsync('/update.txt', 'v3');
+      await flushVFS.writeFileAsync('/update.txt', 'final');
 
       // Only final version should be flushed
       await flushVFS.flush();
@@ -409,12 +408,12 @@ describe('VFSMemFS2 Integration with Real VFS Server', function() {
       const file1 = prepopVFS.resolvePath('/file1.txt');
       expect(file1).to.exist;
       expect(file1!.isFile()).to.be.true;
-      expect((file1 as MemFile2).readAsString()).to.equal('content1');
+      expect((file1 as MemFile).readAsString()).to.equal('content1');
 
       const file2 = prepopVFS.resolvePath('/subdir/file2.txt');
       expect(file2).to.exist;
       expect(file2!.isFile()).to.be.true;
-      expect((file2 as MemFile2).readAsString()).to.equal('content2');
+      expect((file2 as MemFile).readAsString()).to.equal('content2');
 
       // Verify stats
       const stats = prepopVFS.getStatistics();
@@ -447,10 +446,10 @@ describe('VFSMemFS2 Integration with Real VFS Server', function() {
     });
 
     it('should throw error for duplicate file creation', async () => {
-      await vfsMemFS.createFile('/duplicate.txt', 'first');
+      await vfsMemFS.createFileAsync('/duplicate.txt', 'first');
 
       try {
-        await vfsMemFS.createFile('/duplicate.txt', 'second');
+        await vfsMemFS.createFileAsync('/duplicate.txt', 'second');
         throw new Error('Should have thrown');
       } catch (error) {
         expect(error).to.be.instanceOf(VFSMemFS2Error);
@@ -470,7 +469,7 @@ describe('VFSMemFS2 Integration with Real VFS Server', function() {
 
     it('should throw error for appending to non-existent file', async () => {
       try {
-        await vfsMemFS.appendFile('/no-file.txt', 'data');
+        await vfsMemFS.appendFileAsync('/no-file.txt', 'data');
         throw new Error('Should have thrown');
       } catch (error) {
         expect(error).to.be.instanceOf(VFSMemFS2Error);
@@ -479,11 +478,11 @@ describe('VFSMemFS2 Integration with Real VFS Server', function() {
     });
 
     it('should throw error for removing non-empty directory without recursive', async () => {
-      await vfsMemFS.createDirectory('/not-empty');
-      await vfsMemFS.createFile('/not-empty/file.txt', 'data');
+      await vfsMemFS.createDirectoryAsync('/not-empty');
+      await vfsMemFS.createFileAsync('/not-empty/file.txt', 'data');
 
       try {
-        await vfsMemFS.remove('/not-empty');
+        await vfsMemFS.removeAsync('/not-empty');
         throw new Error('Should have thrown');
       } catch (error) {
         expect(error).to.be.instanceOf(VFSMemFS2Error);
@@ -493,7 +492,7 @@ describe('VFSMemFS2 Integration with Real VFS Server', function() {
 
     it('should throw error for creating file in non-existent directory', async () => {
       try {
-        await vfsMemFS.createFile('/no-dir/file.txt', 'data');
+        await vfsMemFS.createFileAsync('/no-dir/file.txt', 'data');
         throw new Error('Should have thrown');
       } catch (error) {
         expect(error).to.be.instanceOf(VFSMemFS2Error);
@@ -502,10 +501,10 @@ describe('VFSMemFS2 Integration with Real VFS Server', function() {
     });
 
     it('should throw error when trying to write to a directory path', async () => {
-      await vfsMemFS.createDirectory('/is-dir');
+      await vfsMemFS.createDirectoryAsync('/is-dir');
 
       try {
-        await vfsMemFS.writeFile('/is-dir', 'data');
+        await vfsMemFS.writeFileAsync('/is-dir', 'data');
         throw new Error('Should have thrown');
       } catch (error) {
         expect(error).to.be.instanceOf(VFSMemFS2Error);
@@ -524,10 +523,10 @@ describe('VFSMemFS2 Integration with Real VFS Server', function() {
     });
 
     it('should track file and directory counts accurately', async () => {
-      await vfsMemFS.createDirectory('/stats-dir');
-      await vfsMemFS.createFile('/file1.txt', 'a');
-      await vfsMemFS.createFile('/file2.txt', 'b');
-      await vfsMemFS.createFile('/stats-dir/file3.txt', 'c');
+      await vfsMemFS.createDirectoryAsync('/stats-dir');
+      await vfsMemFS.createFileAsync('/file1.txt', 'a');
+      await vfsMemFS.createFileAsync('/file2.txt', 'b');
+      await vfsMemFS.createFileAsync('/stats-dir/file3.txt', 'c');
 
       const stats = vfsMemFS.getStatistics();
 
@@ -544,8 +543,8 @@ describe('VFSMemFS2 Integration with Real VFS Server', function() {
         writeMode: 'flush'
       });
 
-      await flushVFS.createFile('/dirty1.txt', 'a');
-      await flushVFS.createFile('/dirty2.txt', 'b');
+      await flushVFS.createFileAsync('/dirty1.txt', 'a');
+      await flushVFS.createFileAsync('/dirty2.txt', 'b');
 
       const stats = flushVFS.getStatistics();
       expect(stats.dirtyFiles).to.equal(2);
@@ -560,7 +559,7 @@ describe('VFSMemFS2 Integration with Real VFS Server', function() {
 
     it('should track lastSyncTime', async () => {
       const before = new Date();
-      await vfsMemFS.createFile('/time-test.txt', 'data');
+      await vfsMemFS.createFileAsync('/time-test.txt', 'data');
       const after = new Date();
 
       const stats = vfsMemFS.getStatistics();
@@ -582,7 +581,7 @@ describe('VFSMemFS2 Integration with Real VFS Server', function() {
     it('should handle concurrent file creations', async () => {
       const promises = [];
       for (let i = 0; i < 10; i++) {
-        promises.push(vfsMemFS.createFile(`/concurrent-${i}.txt`, `content-${i}`));
+        promises.push(vfsMemFS.createFileAsync(`/concurrent-${i}.txt`, `content-${i}`));
       }
 
       await Promise.all(promises);
@@ -599,13 +598,13 @@ describe('VFSMemFS2 Integration with Real VFS Server', function() {
     });
 
     it('should handle concurrent operations on different files', async () => {
-      await vfsMemFS.createFile('/file-a.txt', 'a');
-      await vfsMemFS.createFile('/file-b.txt', 'b');
+      await vfsMemFS.createFileAsync('/file-a.txt', 'a');
+      await vfsMemFS.createFileAsync('/file-b.txt', 'b');
 
       // Concurrent updates and appends
       await Promise.all([
-        vfsMemFS.writeFile('/file-a.txt', 'updated-a'),
-        vfsMemFS.appendFile('/file-b.txt', '-appended')
+        vfsMemFS.writeFileAsync('/file-a.txt', 'updated-a'),
+        vfsMemFS.appendFileAsync('/file-b.txt', '-appended')
       ]);
 
       const contentA = await vfs.readFile(`${testDirectory}/file-a.txt`, 'utf8');
@@ -624,13 +623,13 @@ describe('VFSMemFS2 Integration with Real VFS Server', function() {
         writeMode: 'sync'
       });
 
-      await vfsMemFS.createFile('/before-switch.txt', 'synced');
+      await vfsMemFS.createFileAsync('/before-switch.txt', 'synced');
 
       // Switch to flush mode
       vfsMemFS.setWriteMode('flush');
       expect(vfsMemFS.getWriteMode()).to.equal('flush');
 
-      await vfsMemFS.createFile('/after-switch.txt', 'buffered');
+      await vfsMemFS.createFileAsync('/after-switch.txt', 'buffered');
 
       // First file should be on VFS
       const c1 = await vfs.readFile(`${testDirectory}/before-switch.txt`, 'utf8');
@@ -661,7 +660,7 @@ describe('VFSMemFS2 Integration with Real VFS Server', function() {
     });
 
     it('should handle empty files', async () => {
-      await vfsMemFS.createFile('/empty.txt', '');
+      await vfsMemFS.createFileAsync('/empty.txt', '');
 
       const content = await vfs.readFile(`${testDirectory}/empty.txt`, 'utf8');
       expect(content).to.equal('');
@@ -669,7 +668,7 @@ describe('VFSMemFS2 Integration with Real VFS Server', function() {
 
     it('should handle files with special characters in name', async () => {
       const filename = '/file-with-special_chars.2024.txt';
-      await vfsMemFS.createFile(filename, 'special');
+      await vfsMemFS.createFileAsync(filename, 'special');
 
       const content = await vfs.readFile(`${testDirectory}${filename}`, 'utf8');
       expect(content).to.equal('special');
@@ -678,7 +677,7 @@ describe('VFSMemFS2 Integration with Real VFS Server', function() {
     it('should handle large files', async () => {
       const largeContent = 'x'.repeat(100000); // 100KB
 
-      await vfsMemFS.createFile('/large.txt', largeContent);
+      await vfsMemFS.createFileAsync('/large.txt', largeContent);
 
       const content = await vfs.readFile(`${testDirectory}/large.txt`, 'utf8');
       expect(content).to.equal(largeContent);
@@ -687,8 +686,8 @@ describe('VFSMemFS2 Integration with Real VFS Server', function() {
 
     it('should handle deeply nested paths', async () => {
       const deepPath = '/a/b/c/d/e/f/g/h/i/j';
-      await vfsMemFS.createDirectories(deepPath);
-      await vfsMemFS.createFile(`${deepPath}/file.txt`, 'deep');
+      await vfsMemFS.createDirectoriesAsync(deepPath);
+      await vfsMemFS.createFileAsync(`${deepPath}/file.txt`, 'deep');
 
       const content = await vfs.readFile(`${testDirectory}${deepPath}/file.txt`, 'utf8');
       expect(content).to.equal('deep');

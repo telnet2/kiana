@@ -105,106 +105,20 @@ export class VFSMemFS2 extends MemFS {
     return file;
   }
 
-  // ==================== SYNC API (respects writeMode) ====================
+  // ==================== CONVENIENCE METHODS ====================
 
-  createFileSync(pathStr: string, content: string | Buffer = ''): MemFile {
-    return this.createFile(pathStr, content);
+  // Convenience method for reading files (sync wrapper)
+  readFile(pathStr: string, encoding?: BufferEncoding): string | Buffer {
+    return this.readFileSync(pathStr, encoding);
   }
 
-  override createDirectory(pathStr: string): MemDirectory {
-    const dir = super.createDirectory(pathStr);
-
-    if (this.writeMode === 'sync') {
-      const vfsPath = this.toVFSPath(pathStr);
-      this.vfs.mkdir(vfsPath, { recursive: true }).catch(error => {
-        console.error(`Failed to create directory ${pathStr} in VFS:`, error);
-      });
-    } else {
-      this.dirtyPaths.add(pathStr);
-    }
-
-    return dir;
-  }
-
-  override createDirectories(pathStr: string): MemDirectory {
-    const isAbsolute = pathStr.startsWith('/');
-    const parts = pathStr.split('/').filter((p) => p && p !== '.');
-    let current: MemDirectory = this.root;
-    let currentPath = '';
-
-    for (const part of parts) {
-      if (part === '..') {
-        current = current.parent ?? current;
-        currentPath = current.getPath();
-      } else {
-        currentPath = currentPath === '/' ? `/${part}` : `${currentPath}/${part}`;
-        let child = current.getChild(part);
-        if (!child) {
-          child = new MemDirectory(part, current);
-          current.addChild(child);
-
-          if (this.writeMode === 'sync') {
-            const vfsPath = this.toVFSPath(currentPath);
-            this.vfs.mkdir(vfsPath, { recursive: true }).catch(error => {
-              console.error(`Failed to create directory ${currentPath} in VFS:`, error);
-            });
-          } else {
-            this.dirtyPaths.add(currentPath);
-          }
-        } else if (!child.isDirectory()) {
-          throw new VFSMemFS2Error(`Not a directory: ${part}`, 'ENOTDIR', currentPath);
-        }
-        current = child as MemDirectory;
-      }
-    }
-
-    return current;
-  }
-
-  override remove(pathStr: string, recursive = false): boolean {
+  // Convenience method for listing directories
+  listDirectory(pathStr: string): Array<MemFile | MemDirectory> {
     const node = this.resolvePath(pathStr);
-    if (!node) {
-      throw new Error(`No such file or directory: ${pathStr}`);
+    if (!node?.isDirectory()) {
+      throw new VFSMemFS2Error(`Not a directory: ${pathStr}`, 'ENOTDIR', pathStr);
     }
-
-    if (node === this.root) {
-      throw new Error('Cannot remove root directory');
-    }
-
-    if (node.isDirectory() && node.children.size > 0 && !recursive) {
-      throw new Error(`Directory not empty: ${pathStr}`);
-    }
-
-    if (!node.parent) {
-      throw new Error('Cannot remove node without parent');
-    }
-
-    const result = node.parent.removeChild(node.name);
-
-    if (result) {
-      this.dirtyPaths.delete(pathStr);
-
-      if (this.writeMode === 'sync') {
-        const vfsPath = this.toVFSPath(pathStr);
-        if (node.isDirectory()) {
-          this.vfs.rm(vfsPath, { recursive: true }).catch(error => {
-            if (error.code !== 'ENOENT') {
-              console.error(`Failed to remove ${pathStr} from VFS:`, error);
-            }
-          });
-        } else {
-          this.vfs.unlink(vfsPath).catch(error => {
-            if (error.code !== 'ENOENT') {
-              console.error(`Failed to remove ${pathStr} from VFS:`, error);
-            }
-          });
-        }
-      } else {
-        this.deletedPaths.add(pathStr);
-      }
-    }
-
-    return result;
+    return (node as MemDirectory).listChildren() as Array<MemFile | MemDirectory>;
   }
 
   // ==================== ASYNC API ====================
@@ -565,6 +479,132 @@ export class VFSMemFS2 extends MemFS {
         throw error;
       }
     }
+  }
+
+  // ==================== SYNC API ====================
+  // Note: These synchronous methods don't actually call VFS (which is async-only)
+  // They only operate on the in-memory filesystem and mark files as dirty for later sync
+
+  createFileSync(pathStr: string, content: string | Buffer = ''): MemFile {
+    const parsed = this.parsePath(pathStr);
+    if (!parsed) {
+      throw new VFSMemFS2Error(`Cannot create file: invalid path ${pathStr}`, 'EINVAL', pathStr);
+    }
+
+    const { dir, name } = parsed;
+    if (!name) {
+      throw new VFSMemFS2Error('Cannot create file: invalid filename', 'EINVAL', pathStr);
+    }
+
+    if (dir.hasChild(name)) {
+      throw new VFSMemFS2Error(`File or directory already exists: ${name}`, 'EEXIST', pathStr);
+    }
+
+    const file = new MemFile(name, content, dir);
+    dir.addChild(file);
+    this.dirtyPaths.add(pathStr);
+
+    return file;
+  }
+
+  writeFileSync(pathStr: string, content: string | Buffer): void {
+    const node = this.resolvePath(pathStr);
+    if (node?.isFile()) {
+      node.write(content);
+    } else if (node) {
+      throw new VFSMemFS2Error(`Path exists but is not a file: ${pathStr}`, 'EISDIR', pathStr);
+    } else {
+      throw new VFSMemFS2Error(`No such file: ${pathStr}`, 'ENOENT', pathStr);
+    }
+
+    this.dirtyPaths.add(pathStr);
+  }
+
+  appendFileSync(pathStr: string, content: string | Buffer): void {
+    const node = this.resolvePath(pathStr);
+    if (!node?.isFile()) {
+      throw new VFSMemFS2Error(`No such file: ${pathStr}`, 'ENOENT', pathStr);
+    }
+
+    node.append(content);
+    this.dirtyPaths.add(pathStr);
+  }
+
+  createDirectorySync(pathStr: string): MemDirectory {
+    const parsed = this.parsePath(pathStr);
+    if (!parsed) {
+      throw new VFSMemFS2Error(`Cannot create directory: invalid path ${pathStr}`, 'EINVAL', pathStr);
+    }
+
+    const { dir, name } = parsed;
+    if (!name) {
+      throw new VFSMemFS2Error('Cannot create directory: invalid name', 'EINVAL', pathStr);
+    }
+
+    if (dir.hasChild(name)) {
+      throw new VFSMemFS2Error(`File or directory already exists: ${name}`, 'EEXIST', pathStr);
+    }
+
+    const newDir = new MemDirectory(name, dir);
+    dir.addChild(newDir);
+    this.dirtyPaths.add(pathStr);
+
+    return newDir;
+  }
+
+  createDirectoriesSync(pathStr: string): MemDirectory {
+    const isAbsolute = pathStr.startsWith('/');
+    const parts = pathStr.split('/').filter((p) => p && p !== '.');
+    let current: MemDirectory = this.root;
+    let currentPath = '';
+
+    for (const part of parts) {
+      if (part === '..') {
+        current = current.parent ?? current;
+        currentPath = current.getPath();
+      } else {
+        currentPath = currentPath === '/' ? `/${part}` : `${currentPath}/${part}`;
+        let child = current.getChild(part);
+        if (!child) {
+          child = new MemDirectory(part, current);
+          current.addChild(child);
+          this.dirtyPaths.add(currentPath);
+        } else if (!child.isDirectory()) {
+          throw new VFSMemFS2Error(`Not a directory: ${part}`, 'ENOTDIR', currentPath);
+        }
+        current = child as MemDirectory;
+      }
+    }
+
+    return current;
+  }
+
+  removeSync(pathStr: string, recursive = false): boolean {
+    const node = this.resolvePath(pathStr);
+    if (!node) {
+      throw new VFSMemFS2Error(`No such file or directory: ${pathStr}`, 'ENOENT', pathStr);
+    }
+
+    if (node === this.root) {
+      throw new VFSMemFS2Error('Cannot remove root directory', 'EPERM', pathStr);
+    }
+
+    if (node.isDirectory() && node.children.size > 0 && !recursive) {
+      throw new VFSMemFS2Error(`Directory not empty: ${pathStr}`, 'ENOTEMPTY', pathStr);
+    }
+
+    if (!node.parent) {
+      throw new VFSMemFS2Error('Cannot remove node without parent', 'EINVAL', pathStr);
+    }
+
+    const result = node.parent.removeChild(node.name);
+
+    if (result) {
+      this.dirtyPaths.delete(pathStr);
+      this.deletedPaths.add(pathStr);
+    }
+
+    return result;
   }
 
   // ==================== UTILITIES ====================
