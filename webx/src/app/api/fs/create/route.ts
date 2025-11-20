@@ -18,12 +18,14 @@ export async function POST(req: NextRequest) {
   if (!rec) return Response.json({ error: 'Session not found' }, { status: 404 });
 
   try {
-    const fs = rec.memtools.getFileSystem();
+    const fs = rec.shell.fs;
     if (type === 'directory') {
       fs.createDirectories(path);
     } else {
       fs.createFile(path, '');
     }
+    // Persist session changes
+    await store.persistSession(rec);
     return Response.json({ success: true });
   } catch (e) {
     return Response.json({ error: `Error creating ${type}: ${(e as Error).message}` }, { status: 500 });

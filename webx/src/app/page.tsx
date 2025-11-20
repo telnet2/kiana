@@ -14,7 +14,7 @@ export default function Page() {
 
   const { ref: leftRef, width: leftWidth, Divider: VDivider1 } = useHorizontalResize(300);
   // VDivider2: top splitter (Sessions/FileExplorer) - normal direction (drag down = grow)
-  const { ref: topRef, height: topHeight, Divider: VDivider2 } = useVerticalResize(200, false);
+  const { height: topHeight, Divider: VDivider2 } = useVerticalResize(200, false);
 
   // On first load: use most recent session if any; otherwise create one
   useEffect(() => {

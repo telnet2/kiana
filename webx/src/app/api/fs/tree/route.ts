@@ -7,10 +7,11 @@ export const dynamic = 'force-dynamic';
 type Node = {
   type: 'file' | 'directory';
   name: string;
+  isDirty?: boolean;
   children?: Node[];
 };
 
-function buildTree(path: string, fs: any): Node | null {
+function buildTree(path: string, fs: any, dirtyPaths?: Set<string>): Node | null {
   try {
     const node = fs.resolvePath(path);
     if (!node) {
@@ -27,9 +28,11 @@ function buildTree(path: string, fs: any): Node | null {
     }
 
     if (node.isFile && node.isFile()) {
+      const isDirty = dirtyPaths?.has(path);
       return {
         type: 'file',
         name: path.split('/').pop() || path,
+        ...(isDirty && { isDirty }),
       };
     }
 
@@ -48,7 +51,7 @@ function buildTree(path: string, fs: any): Node | null {
 
         for (const child of childNodes) {
           const childPath = `${path}/${child.name}`.replace(/\/+/g, '/');
-          const childNode = buildTree(childPath, fs);
+          const childNode = buildTree(childPath, fs, dirtyPaths);
           if (childNode) {
             children.push(childNode);
           }
@@ -85,8 +88,11 @@ export async function GET(req: NextRequest) {
   const rec = store.get(sessionId);
   if (!rec) return new Response('Session not found', { status: 404 });
 
-  const fs = rec.memtools.getFileSystem();
+  const fs = rec.shell.fs;
   console.log('Building tree for session:', sessionId);
+
+  // Get dirty paths from VFSMemShell2
+  const dirtyPaths = new Set<string>(rec.shell.getDirtyPaths());
 
   // Debug: list root children directly
   const rootNode = fs.resolvePath('/');
@@ -95,7 +101,7 @@ export async function GET(req: NextRequest) {
     console.log(`Root directory has ${children.length} children:`, children.map((c: any) => c.name));
   }
 
-  const root = buildTree('/', fs);
+  const root = buildTree('/', fs, dirtyPaths);
 
   if (root) {
     console.log(`Tree built successfully with ${countFiles(root)} files`);

@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
   if (!rec) return Response.json({ error: 'Session not found' }, { status: 404 });
 
   try {
-    const fs = rec.memtools.getFileSystem();
+    const fs = rec.shell.fs;
     const node: any = fs.resolvePath(path);
     if (!node || !node.isFile()) {
       return Response.json({ error: 'File not found' }, { status: 404 });
@@ -43,7 +43,7 @@ export async function PUT(req: NextRequest) {
   if (!rec) return Response.json({ error: 'Session not found' }, { status: 404 });
 
   try {
-    const fs = rec.memtools.getFileSystem();
+    const fs = rec.shell.fs;
     const node: any = fs.resolvePath(path);
 
     if (node) {
@@ -51,10 +51,15 @@ export async function PUT(req: NextRequest) {
         return Response.json({ error: 'Path is not a file' }, { status: 400 });
       }
       node.write(content ?? '');
+      // Mark file as dirty in VFSMemShell2
+      rec.shell.getVFSMemFS2().markDirty(path);
     } else {
       // Create the file if it doesn't exist
       fs.createFile(path, content ?? '');
     }
+
+    // Persist session changes
+    await store.persistSession(rec);
 
     return Response.json({ success: true });
   } catch (e) {

@@ -12,6 +12,14 @@ import { MemTools } from './MemTools';
 import { Writer } from './Writer';
 
 /**
+ * Minimal shell interface for agent tools
+ * Implemented by MemShell, MemTools, VFSMemShell2, etc.
+ */
+export interface ShellInterface {
+  exec(command: string): string;
+}
+
+/**
  * ARK Configuration Interface
  */
 export interface ARKConfig {
@@ -125,9 +133,9 @@ const createARKProvider = (config: ARKConfig) => {
 };
 
 /**
- * Convert MemTools to ai-sdk tool format
+ * Convert shell to ai-sdk tool format
  */
-const createMemfsTool = (memtools: MemTools) => 
+const createMemfsTool = (shell: ShellInterface) =>
   tool({
     description: 'Execute shell commands in the in-memory filesystem',
     inputSchema: z.object({
@@ -139,12 +147,12 @@ const createMemfsTool = (memtools: MemTools) =>
     }),
     execute: async ({ command }) => {
       try {
-        const result = memtools.exec(command);
+        const result = shell.exec(command);
         return { result, success: true };
       } catch (error) {
-        return { 
-          result: `ERROR: ${error instanceof Error ? error.message : String(error)}`, 
-          success: false 
+        return {
+          result: `ERROR: ${error instanceof Error ? error.message : String(error)}`,
+          success: false
         };
       }
     },
@@ -152,11 +160,11 @@ const createMemfsTool = (memtools: MemTools) =>
 
 /**
  * Create Kiana agent with AI SDK v6
- * @param memtools - Memory tools for filesystem access
+ * @param shell - Shell interface for filesystem access (MemShell, MemTools, VFSMemShell2, etc.)
  * @param options - Configuration options including additional tools
  */
 export const createKianaAgent = async (
-  memtools: MemTools,
+  shell: ShellInterface,
   options: KianaOptionsV6
 ) => {
   const verbose = options.verbose || false;
@@ -184,7 +192,7 @@ export const createKianaAgent = async (
 
   // Build tools object: always include memfs_exec + any additional tools
   const toolsObject: Record<string, any> = {
-    memfs_exec: createMemfsTool(memtools),
+    memfs_exec: createMemfsTool(shell),
   };
 
   // Merge additional tools if provided

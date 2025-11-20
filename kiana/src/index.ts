@@ -13,6 +13,8 @@ export * from './tools';
 
 // VFS Integration
 export { VFSMemFS, VFSMemFSOptions, VFSMemFSStatistics } from './VFSMemFS';
+export { VFSMemFS2, VFSMemFS2Options, VFSMemFS2Statistics } from './VFSMemFS2';
 export { VFSMemShell, VFSMemShellOptions, VFSStatus } from './VFSMemShell';
+export { VFSMemShell2, VFSMemShell2Options } from './VFSMemShell2';
 export { VFSMemSession, VFSMemSessionOptions, SessionData } from './VFSMemSession';
 export * from './vfs-types';

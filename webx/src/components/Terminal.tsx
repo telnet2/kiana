@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import { useChat } from '@ai-sdk/react';
-import { isTextUIPart, isToolOrDynamicToolUIPart, getToolOrDynamicToolName, isDataUIPart, type UIMessage } from 'ai';
+import { isTextUIPart, isToolOrDynamicToolUIPart, getToolOrDynamicToolName, type UIMessage } from 'ai';
 import { Streamdown } from 'streamdown';
 import ToolResultView from './ToolResultView';
 import { WeatherDisplay, WeatherData } from './WeatherDisplay';
@@ -34,8 +34,7 @@ export default function Terminal({
 
   const { messages, sendMessage, status } = useChat<UIMessage>({
     id: sessionId ?? undefined,
-    api: '/api/chat',
-    body: sessionId ? { sessionId } : undefined,
+    ...(sessionId ? { body: { sessionId } } : {}),
   });
 
   const streaming = status === 'streaming' || status === 'submitted';

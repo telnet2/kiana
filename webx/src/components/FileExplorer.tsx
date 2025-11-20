@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 type Node = {
   type: 'file' | 'directory';
   name: string;
+  isDirty?: boolean;
   children?: Node[];
 };
 
@@ -51,12 +52,15 @@ function TreeNode({
 
   return (
     <div
-      className="px-2 py-1 hover:bg-bg-subtle rounded cursor-pointer text-sm"
+      className={`px-2 py-1 hover:bg-bg-subtle rounded cursor-pointer text-sm flex items-center gap-1 ${
+        node.isDirty ? 'font-bold' : ''
+      }`}
       style={indent}
       title={path}
       onClick={() => onSelectFile(path)}
     >
-      {node.name}
+      {node.isDirty && <span className="text-orange-400">●</span>}
+      <span>{node.name}</span>
     </div>
   );
 }
@@ -75,6 +79,19 @@ export default function FileExplorer({
   const [showNewFileDialog, setShowNewFileDialog] = useState(false);
   const [newFileName, setNewFileName] = useState('');
   const [newFileType, setNewFileType] = useState<'file' | 'directory'>('file');
+  const [dirtyCount, setDirtyCount] = useState(0);
+  const [isFlushing, setIsFlushing] = useState(false);
+
+  function countDirtyFiles(node: Node | null): number {
+    if (!node) return 0;
+    let count = node.isDirty ? 1 : 0;
+    if (node.children) {
+      for (const child of node.children) {
+        count += countDirtyFiles(child);
+      }
+    }
+    return count;
+  }
 
   async function refresh() {
     if (!sessionId) return;
@@ -86,11 +103,32 @@ export default function FileExplorer({
       if (res.ok) {
         const data = await res.json();
         setTree(data.root);
+        setDirtyCount(countDirtyFiles(data.root));
       }
     } catch (e) {
       console.error('Error loading tree:', e);
     }
     setLoading(false);
+  }
+
+  async function onFlush() {
+    if (!sessionId) return;
+    setIsFlushing(true);
+    try {
+      const res = await fetch(`/api/flush?sessionId=${encodeURIComponent(sessionId)}`, {
+        method: 'POST',
+      });
+      if (res.ok) {
+        const data = await res.json();
+        console.log('Flush result:', data);
+        await refresh();
+      } else {
+        console.error('Flush failed:', await res.text());
+      }
+    } catch (e) {
+      console.error('Error flushing:', e);
+    }
+    setIsFlushing(false);
   }
 
   useEffect(() => {
@@ -157,7 +195,13 @@ export default function FileExplorer({
           Import Files
         </label>
         <label className="btn-ghost cursor-pointer text-xs">
-          <input type="file" multiple className="hidden" onChange={onImport} webkitdirectory="true" directory="true" />
+          <input
+            type="file"
+            multiple
+            className="hidden"
+            onChange={onImport}
+            {...{ webkitdirectory: true, directory: true } as any}
+          />
           Import Folder
         </label>
         <button className="btn-ghost text-xs" onClick={onExport} disabled={!sessionId}>
@@ -166,6 +210,16 @@ export default function FileExplorer({
         <button className="btn-ghost text-xs" onClick={refresh} disabled={!sessionId}>
           Refresh
         </button>
+        {dirtyCount > 0 && (
+          <button
+            className="btn text-xs bg-orange-600 hover:bg-orange-700 text-white disabled:opacity-50"
+            onClick={onFlush}
+            disabled={!sessionId || isFlushing}
+            title={`Flush ${dirtyCount} dirty file${dirtyCount !== 1 ? 's' : ''} to VFS`}
+          >
+            {isFlushing ? 'Flushing…' : `Flush (${dirtyCount})`}
+          </button>
+        )}
       </div>
       <div className="flex-1 overflow-auto scroll-thin p-2">
         {!sessionId && <div className="text-text-muted text-sm">Create or select a session</div>}

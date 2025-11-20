@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
 
   const ark = getArkConfig();
   // Resolve system prompt from MemFS _system_prompt unless explicitly provided
-  const fs = rec.memtools.getFileSystem();
+  const fs = rec.shell.fs;
   let system = systemPrompt;
   try {
     const node: any = fs.resolvePath("/_system_prompt");
@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
   // Create weather tools with OpenWeatherMap API key
   const weatherTools = createWeatherTools(process.env.OPENWEATHERMAP_API_KEY);
 
-  const agent = await createKianaAgent(rec.memtools, {
+  const agent = await createKianaAgent(rec.shell, {
     // Instruction not required for Agent UI streaming mode.
     systemPrompt: system,
     arkConfig: ark,

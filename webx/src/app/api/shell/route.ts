@@ -32,16 +32,23 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    // Use the public exec() method on MemTools
-    // This executes commands in the MemShell which uses the same MemFS instance
+    // Execute command using VFSMemShell2
     console.log(`Executing command: ${command}`);
-    const output = rec.memtools.exec(command);
+    const output = rec.shell.exec(command);
     console.log(`Command output: ${output || '(empty)'}`);
+
+    // Save command to history
+    const trimmedOutput = output.trim();
+    await store.updateHistory(sessionId, command, trimmedOutput);
+
+    // Get dirty file count
+    const stats = rec.shell.getVFSStats();
 
     return Response.json({
       command,
-      output: output.trim(),
+      output: trimmedOutput,
       exitCode: 0,
+      dirtyFiles: stats.dirtyFiles,
     });
   } catch (e) {
     const errorMessage = (e as Error).message;
@@ -52,6 +59,7 @@ export async function POST(req: NextRequest) {
         output: '',
         error: errorMessage,
         exitCode: 1,
+        dirtyFiles: 0,
       },
       { status: 200 }
     );

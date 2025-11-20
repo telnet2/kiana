@@ -93,9 +93,9 @@ const createARKProvider = (config) => {
     });
 };
 /**
- * Convert MemTools to ai-sdk tool format
+ * Convert shell to ai-sdk tool format
  */
-const createMemfsTool = (memtools) => (0, ai_1.tool)({
+const createMemfsTool = (shell) => (0, ai_1.tool)({
     description: 'Execute shell commands in the in-memory filesystem',
     inputSchema: zod_1.z.object({
         command: zod_1.z.string().describe('The shell command to execute'),
@@ -106,7 +106,7 @@ const createMemfsTool = (memtools) => (0, ai_1.tool)({
     }),
     execute: async ({ command }) => {
         try {
-            const result = memtools.exec(command);
+            const result = shell.exec(command);
             return { result, success: true };
         }
         catch (error) {
@@ -119,10 +119,10 @@ const createMemfsTool = (memtools) => (0, ai_1.tool)({
 });
 /**
  * Create Kiana agent with AI SDK v6
- * @param memtools - Memory tools for filesystem access
+ * @param shell - Shell interface for filesystem access (MemShell, MemTools, VFSMemShell2, etc.)
  * @param options - Configuration options including additional tools
  */
-const createKianaAgent = async (memtools, options) => {
+const createKianaAgent = async (shell, options) => {
     const verbose = options.verbose || false;
     const systemPrompt = options.systemPrompt || exports.DEFAULT_SYSTEM_PROMPT;
     const maxRounds = options.maxRounds || 20;
@@ -146,7 +146,7 @@ const createKianaAgent = async (memtools, options) => {
     }
     // Build tools object: always include memfs_exec + any additional tools
     const toolsObject = {
-        memfs_exec: createMemfsTool(memtools),
+        memfs_exec: createMemfsTool(shell),
     };
     // Merge additional tools if provided
     if (options.additionalTools) {

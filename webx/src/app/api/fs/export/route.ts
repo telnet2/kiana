@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
   const session = store.get(sessionId);
   if (!session) return new Response('Session not found', { status: 404 });
 
-  const buf = await zipMemDir(session.memtools.getFileSystem().root);
+  const buf = await zipMemDir(session.shell.fs.root);
   return new Response(buf, {
     headers: {
       'Content-Type': 'application/zip',

@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
     if (!(value instanceof File)) continue;
     const relPath = (value as any).webkitRelativePath || value.name;
     const buf = Buffer.from(await value.arrayBuffer());
-    const memfs = session.memtools.getFileSystem();
+    const memfs = session.shell.fs;
     const target = relPath.startsWith('/') ? relPath.slice(1) : relPath;
     const full = target.startsWith('/') ? target : `/${target}`;
 
@@ -42,6 +42,8 @@ export async function POST(req: NextRequest) {
         const node = memfs.resolvePath(full);
         if (node && node.isFile()) {
           node.write(buf.toString('utf8'));
+          // Mark file as dirty
+          session.shell.getVFSMemFS2().markDirty(full);
           console.log(`✓ Updated: ${full}`);
         } else {
           console.error(`Failed to create/update ${full}:`, (e as Error).message);
@@ -54,6 +56,9 @@ export async function POST(req: NextRequest) {
     }
     count++;
   }
+
+  // Persist imported files
+  await store.persistSession(session);
 
   console.log(`Import complete: ${count} files imported`);
   return Response.json({ imported: count });

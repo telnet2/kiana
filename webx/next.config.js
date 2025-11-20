@@ -21,6 +21,7 @@ const nextConfig = {
       'vm2',
       'coffee-script',
       '@byted/kiana',
+      '@byted/crystal-vfs',
       'deasync',
       'node-jq',
     ];
