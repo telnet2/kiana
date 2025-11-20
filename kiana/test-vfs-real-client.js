@@ -11,6 +11,10 @@
 
 async function testVFSRealClient() {
   try {
+    if (!process.env.VFS_AUTH_TOKEN) {
+      throw new Error('VFS_AUTH_TOKEN environment variable is not set');
+    }
+    
     console.log('🚀 Testing VFS with real @byted/crystal-vfs client...');
     
     // Dynamic import of ESM module
@@ -19,7 +23,7 @@ async function testVFSRealClient() {
     // Initialize VFS client
     const vfs = new VFS({
       baseURL: 'http://localhost:18080',
-      token: 'local-system-admin'
+      token: process.env.VFS_AUTH_TOKEN
     });
 
     // Generate random test directory

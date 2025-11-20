@@ -14,9 +14,10 @@ async function runVFSTests() {
   console.log('🚀 Starting VFS Real Client Tests...');
   
   // Get auth token from environment variable or use default
-  const authToken = process.env.VFS_AUTH_TOKEN || 'local-system-admin';
-  
-  console.log(`🔑 Using VFS auth token: ${authToken === 'local-system-admin' ? 'default' : 'from VFS_AUTH_TOKEN env var'}`);
+  const authToken = process.env.VFS_AUTH_TOKEN;
+  if (!authToken) {
+    throw new Error('VFS_AUTH_TOKEN environment variable is not set');
+  }
   
   // Initialize VFS client
   const vfs = new VFS({

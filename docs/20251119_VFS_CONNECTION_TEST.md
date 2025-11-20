@@ -2,7 +2,7 @@
 
 ## Test Summary
 
-Successfully created and executed a comprehensive TypeScript test for VFS connection and operations using the `@byted/crystal-vfs` package. The test connects to `http://localhost:18080` with the `local-system-admin` token and performs various file operations in a temporary directory with a random number.
+Successfully created and executed a comprehensive TypeScript test for VFS connection and operations using the `@byted/crystal-vfs` package. The test connects to `http://localhost:18080` with the dev token and performs various file operations in a temporary directory with a random number.
 
 ## Test Results
 
@@ -117,4 +117,4 @@ The VFS connection test successfully demonstrates:
 4. **Error Handling**: Robust error handling and recovery
 5. **Cleanup**: Proper resource cleanup after testing
 
-All 19 tests passed, confirming that the VFS integration is working correctly with the `local-system-admin` token on `localhost:18080`.
+All 19 tests passed, confirming that the VFS integration is working correctly with the dev token on `localhost:18080`.
