@@ -34,21 +34,28 @@ exports.MemNode = MemNode;
 class MemFile extends MemNode {
     constructor(name, content = '', parent = null) {
         super(name, parent);
-        this.content = content;
+        this.content = typeof content === 'string' ? Buffer.from(content, 'utf8') : content;
     }
     write(content) {
-        this.content = content;
+        this.content = typeof content === 'string' ? Buffer.from(content, 'utf8') : content;
         this.modifiedAt = new Date();
     }
     append(content) {
-        this.content += content;
+        const appendBuffer = typeof content === 'string' ? Buffer.from(content, 'utf8') : content;
+        this.content = Buffer.concat([this.content, appendBuffer]);
         this.modifiedAt = new Date();
     }
     read() {
+        return this.content.toString('utf8');
+    }
+    readAsString(encoding = 'utf8') {
+        return this.content.toString(encoding);
+    }
+    readAsBuffer() {
         return this.content;
     }
     size() {
-        return Buffer.byteLength(this.content, 'utf8');
+        return this.content.length;
     }
 }
 exports.MemFile = MemFile;

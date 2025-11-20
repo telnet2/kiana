@@ -34,29 +34,38 @@ export abstract class MemNode {
 }
 
 export class MemFile extends MemNode {
-    private content: string;
+    private content: Buffer;
 
-    constructor(name: string, content = '', parent: MemDirectory | null = null) {
+    constructor(name: string, content: string | Buffer = '', parent: MemDirectory | null = null) {
         super(name, parent);
-        this.content = content;
+        this.content = typeof content === 'string' ? Buffer.from(content, 'utf8') : content;
     }
 
-    write(content: string): void {
-        this.content = content;
+    write(content: string | Buffer): void {
+        this.content = typeof content === 'string' ? Buffer.from(content, 'utf8') : content;
         this.modifiedAt = new Date();
     }
 
-    append(content: string): void {
-        this.content += content;
+    append(content: string | Buffer): void {
+        const appendBuffer = typeof content === 'string' ? Buffer.from(content, 'utf8') : content;
+        this.content = Buffer.concat([this.content, appendBuffer]);
         this.modifiedAt = new Date();
     }
 
     read(): string {
+        return this.content.toString('utf8');
+    }
+
+    readAsString(encoding: BufferEncoding = 'utf8'): string {
+        return this.content.toString(encoding);
+    }
+
+    readAsBuffer(): Buffer {
         return this.content;
     }
 
     size(): number {
-        return Buffer.byteLength(this.content, 'utf8');
+        return this.content.length;
     }
 }
 
@@ -182,7 +191,7 @@ export class MemFS {
         return { dir: current, name };
     }
 
-    createFile(pathStr: string, content = ''): MemFile {
+    createFile(pathStr: string, content: string | Buffer = ''): MemFile {
         const parsed = this.parsePath(pathStr);
         if (!parsed) {
             throw new Error(`Cannot create file: invalid path ${pathStr}`);

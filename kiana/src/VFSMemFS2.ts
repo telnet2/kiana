@@ -1,18 +1,21 @@
 /**
  * VFSMemFS2 - Improved VFS and MemFS Integration
  *
- * Key improvements over VFSMemFS:
+ * Key improvements:
+ * - Extends MemFS (consolidates node classes)
  * - Fully async API with proper await for VFS operations
- * - Proper error propagation (not swallowed)
- * - Binary data support with Buffer storage
+ * - Sync API that respects writeMode config
+ * - Proper error propagation
+ * - Binary data support via Buffer in MemFile
  * - Awaitable pre-population
- * - Correct delete handling (rm for directories, unlink for files)
+ * - Correct delete handling
  * - Separate tracking for deleted paths
  */
 
 import * as path from 'path';
+import { MemFS, MemFile, MemDirectory } from './MemFS';
 
-// VFS Client interface - complete subset needed for integration
+// VFS Client interface
 export interface VFSClient2 {
   readFile(path: string, encoding?: string): Promise<string | Uint8Array>;
   writeFile(path: string, data: string | Uint8Array, options?: any): Promise<void>;
@@ -55,7 +58,7 @@ export interface VFSMemFS2Statistics {
   lastSyncTime?: Date;
 }
 
-// Error class for VFSMemFS2
+// Error class
 export class VFSMemFS2Error extends Error {
   code?: string;
   path?: string;
@@ -68,113 +71,7 @@ export class VFSMemFS2Error extends Error {
   }
 }
 
-// Node types
-export type MemNode2Type = 'file' | 'directory';
-
-export abstract class MemNode2 {
-  public name: string;
-  public parent: MemDirectory2 | null;
-  public createdAt: Date;
-  public modifiedAt: Date;
-
-  protected constructor(name: string, parent: MemDirectory2 | null = null) {
-    this.name = name;
-    this.parent = parent;
-    this.createdAt = new Date();
-    this.modifiedAt = new Date();
-  }
-
-  getPath(): string {
-    if (!this.parent) {
-      return '/';
-    }
-    const parentPath = this.parent.getPath();
-    return parentPath === '/' ? `/${this.name}` : `${parentPath}/${this.name}`;
-  }
-
-  isFile(): this is MemFile2 {
-    return this instanceof MemFile2;
-  }
-
-  isDirectory(): this is MemDirectory2 {
-    return this instanceof MemDirectory2;
-  }
-}
-
-export class MemFile2 extends MemNode2 {
-  private content: Buffer;
-
-  constructor(name: string, content: string | Buffer = '', parent: MemDirectory2 | null = null) {
-    super(name, parent);
-    this.content = typeof content === 'string' ? Buffer.from(content, 'utf8') : content;
-  }
-
-  write(content: string | Buffer): void {
-    this.content = typeof content === 'string' ? Buffer.from(content, 'utf8') : content;
-    this.modifiedAt = new Date();
-  }
-
-  append(content: string | Buffer): void {
-    const appendBuffer = typeof content === 'string' ? Buffer.from(content, 'utf8') : content;
-    this.content = Buffer.concat([this.content, appendBuffer]);
-    this.modifiedAt = new Date();
-  }
-
-  readAsString(encoding: BufferEncoding = 'utf8'): string {
-    return this.content.toString(encoding);
-  }
-
-  readAsBuffer(): Buffer {
-    return this.content;
-  }
-
-  size(): number {
-    return this.content.length;
-  }
-}
-
-export class MemDirectory2 extends MemNode2 {
-  public children: Map<string, MemNode2>;
-
-  constructor(name: string, parent: MemDirectory2 | null = null) {
-    super(name, parent);
-    this.children = new Map<string, MemNode2>();
-  }
-
-  addChild(node: MemNode2): void {
-    this.children.set(node.name, node);
-    node.parent = this;
-    this.modifiedAt = new Date();
-  }
-
-  removeChild(name: string): boolean {
-    const removed = this.children.delete(name);
-    if (removed) {
-      this.modifiedAt = new Date();
-    }
-    return removed;
-  }
-
-  getChild(name: string): MemNode2 | undefined {
-    return this.children.get(name);
-  }
-
-  hasChild(name: string): boolean {
-    return this.children.has(name);
-  }
-
-  listChildren(): MemNode2[] {
-    return Array.from(this.children.values());
-  }
-}
-
-interface ParsedPath2 {
-  dir: MemDirectory2;
-  name: string;
-}
-
-export class VFSMemFS2 {
-  public readonly root: MemDirectory2;
+export class VFSMemFS2 extends MemFS {
   private vfs: VFSClient2;
   private baseDirectory: string;
   private writeMode: 'sync' | 'flush';
@@ -185,81 +82,134 @@ export class VFSMemFS2 {
   private lastSyncTime?: Date;
 
   constructor(options: VFSMemFS2Options) {
-    this.root = new MemDirectory2('');
+    super();
     this.vfs = options.vfs;
     this.baseDirectory = options.baseDirectory;
     this.writeMode = options.writeMode;
     this.cacheOnRead = options.cacheOnRead ?? true;
   }
 
-  // Path resolution
-  resolvePath(pathStr: string): MemNode2 | null {
-    if (!pathStr || pathStr === '/') {
-      return this.root;
+  // ==================== OVERRIDE PARENT METHODS (respects writeMode) ====================
+
+  override createFile(pathStr: string, content: string | Buffer = ''): MemFile {
+    const file = super.createFile(pathStr, content);
+
+    if (this.writeMode === 'sync') {
+      this.syncFileToVFS(pathStr).catch(error => {
+        console.error(`Failed to sync ${pathStr} to VFS:`, error);
+      });
+    } else {
+      this.dirtyPaths.add(pathStr);
     }
 
+    return file;
+  }
+
+  // ==================== SYNC API (respects writeMode) ====================
+
+  createFileSync(pathStr: string, content: string | Buffer = ''): MemFile {
+    return this.createFile(pathStr, content);
+  }
+
+  override createDirectory(pathStr: string): MemDirectory {
+    const dir = super.createDirectory(pathStr);
+
+    if (this.writeMode === 'sync') {
+      const vfsPath = this.toVFSPath(pathStr);
+      this.vfs.mkdir(vfsPath, { recursive: true }).catch(error => {
+        console.error(`Failed to create directory ${pathStr} in VFS:`, error);
+      });
+    } else {
+      this.dirtyPaths.add(pathStr);
+    }
+
+    return dir;
+  }
+
+  override createDirectories(pathStr: string): MemDirectory {
     const isAbsolute = pathStr.startsWith('/');
     const parts = pathStr.split('/').filter((p) => p && p !== '.');
-    let current: MemNode2 = isAbsolute ? this.root : this.root;
+    let current: MemDirectory = this.root;
+    let currentPath = '';
 
     for (const part of parts) {
       if (part === '..') {
         current = current.parent ?? current;
-        continue;
-      }
+        currentPath = current.getPath();
+      } else {
+        currentPath = currentPath === '/' ? `/${part}` : `${currentPath}/${part}`;
+        let child = current.getChild(part);
+        if (!child) {
+          child = new MemDirectory(part, current);
+          current.addChild(child);
 
-      if (!current.isDirectory()) {
-        return null;
+          if (this.writeMode === 'sync') {
+            const vfsPath = this.toVFSPath(currentPath);
+            this.vfs.mkdir(vfsPath, { recursive: true }).catch(error => {
+              console.error(`Failed to create directory ${currentPath} in VFS:`, error);
+            });
+          } else {
+            this.dirtyPaths.add(currentPath);
+          }
+        } else if (!child.isDirectory()) {
+          throw new VFSMemFS2Error(`Not a directory: ${part}`, 'ENOTDIR', currentPath);
+        }
+        current = child as MemDirectory;
       }
-
-      const child = current.getChild(part);
-      if (!child) {
-        return null;
-      }
-      current = child;
     }
 
     return current;
   }
 
-  private parsePath(pathStr: string): ParsedPath2 | null {
-    if (!pathStr || pathStr === '/') {
-      return { dir: this.root, name: '' };
+  override remove(pathStr: string, recursive = false): boolean {
+    const node = this.resolvePath(pathStr);
+    if (!node) {
+      throw new Error(`No such file or directory: ${pathStr}`);
     }
 
-    const isAbsolute = pathStr.startsWith('/');
-    const parts = pathStr.split('/').filter((p) => p && p !== '.');
-    const name = parts.pop();
-
-    if (!name) {
-      return null;
+    if (node === this.root) {
+      throw new Error('Cannot remove root directory');
     }
 
-    let current: MemNode2 = isAbsolute ? this.root : this.root;
-    for (const part of parts) {
-      if (part === '..') {
-        current = current.parent ?? current;
+    if (node.isDirectory() && node.children.size > 0 && !recursive) {
+      throw new Error(`Directory not empty: ${pathStr}`);
+    }
+
+    if (!node.parent) {
+      throw new Error('Cannot remove node without parent');
+    }
+
+    const result = node.parent.removeChild(node.name);
+
+    if (result) {
+      this.dirtyPaths.delete(pathStr);
+
+      if (this.writeMode === 'sync') {
+        const vfsPath = this.toVFSPath(pathStr);
+        if (node.isDirectory()) {
+          this.vfs.rm(vfsPath, { recursive: true }).catch(error => {
+            if (error.code !== 'ENOENT') {
+              console.error(`Failed to remove ${pathStr} from VFS:`, error);
+            }
+          });
+        } else {
+          this.vfs.unlink(vfsPath).catch(error => {
+            if (error.code !== 'ENOENT') {
+              console.error(`Failed to remove ${pathStr} from VFS:`, error);
+            }
+          });
+        }
       } else {
-        if (!current.isDirectory()) {
-          return null;
-        }
-        const child = current.getChild(part);
-        if (!child || !child.isDirectory()) {
-          return null;
-        }
-        current = child;
+        this.deletedPaths.add(pathStr);
       }
     }
 
-    if (!current.isDirectory()) {
-      return null;
-    }
-
-    return { dir: current, name };
+    return result;
   }
 
-  // File operations - fully async
-  async createFile(pathStr: string, content: string | Buffer = ''): Promise<MemFile2> {
+  // ==================== ASYNC API ====================
+
+  async createFileAsync(pathStr: string, content: string | Buffer = ''): Promise<MemFile> {
     const parsed = this.parsePath(pathStr);
     if (!parsed) {
       throw new VFSMemFS2Error(`Cannot create file: invalid path ${pathStr}`, 'EINVAL', pathStr);
@@ -274,7 +224,7 @@ export class VFSMemFS2 {
       throw new VFSMemFS2Error(`File or directory already exists: ${name}`, 'EEXIST', pathStr);
     }
 
-    const file = new MemFile2(name, content, dir);
+    const file = new MemFile(name, content, dir);
     dir.addChild(file);
 
     if (this.writeMode === 'sync') {
@@ -286,14 +236,14 @@ export class VFSMemFS2 {
     return file;
   }
 
-  async writeFile(pathStr: string, content: string | Buffer): Promise<void> {
+  async writeFileAsync(pathStr: string, content: string | Buffer): Promise<void> {
     const node = this.resolvePath(pathStr);
     if (node?.isFile()) {
       node.write(content);
     } else if (node) {
       throw new VFSMemFS2Error(`Path exists but is not a file: ${pathStr}`, 'EISDIR', pathStr);
     } else {
-      await this.createFile(pathStr, content);
+      await this.createFileAsync(pathStr, content);
       return;
     }
 
@@ -304,7 +254,7 @@ export class VFSMemFS2 {
     }
   }
 
-  async appendFile(pathStr: string, content: string | Buffer): Promise<void> {
+  async appendFileAsync(pathStr: string, content: string | Buffer): Promise<void> {
     const node = this.resolvePath(pathStr);
     if (!node?.isFile()) {
       throw new VFSMemFS2Error(`No such file: ${pathStr}`, 'ENOENT', pathStr);
@@ -319,8 +269,7 @@ export class VFSMemFS2 {
     }
   }
 
-  // Read file content (sync operation - reads from memory)
-  readFile(pathStr: string, encoding?: BufferEncoding): string | Buffer {
+  readFileSync(pathStr: string, encoding?: BufferEncoding): string | Buffer {
     const node = this.resolvePath(pathStr);
     if (!node) {
       throw new VFSMemFS2Error(`No such file: ${pathStr}`, 'ENOENT', pathStr);
@@ -335,8 +284,7 @@ export class VFSMemFS2 {
     return node.readAsBuffer();
   }
 
-  // Directory operations
-  async createDirectory(pathStr: string): Promise<MemDirectory2> {
+  async createDirectoryAsync(pathStr: string): Promise<MemDirectory> {
     const parsed = this.parsePath(pathStr);
     if (!parsed) {
       throw new VFSMemFS2Error(`Cannot create directory: invalid path ${pathStr}`, 'EINVAL', pathStr);
@@ -351,7 +299,7 @@ export class VFSMemFS2 {
       throw new VFSMemFS2Error(`File or directory already exists: ${name}`, 'EEXIST', pathStr);
     }
 
-    const newDir = new MemDirectory2(name, dir);
+    const newDir = new MemDirectory(name, dir);
     dir.addChild(newDir);
 
     if (this.writeMode === 'sync') {
@@ -364,10 +312,10 @@ export class VFSMemFS2 {
     return newDir;
   }
 
-  async createDirectories(pathStr: string): Promise<MemDirectory2> {
+  async createDirectoriesAsync(pathStr: string): Promise<MemDirectory> {
     const isAbsolute = pathStr.startsWith('/');
     const parts = pathStr.split('/').filter((p) => p && p !== '.');
-    let current: MemDirectory2 = this.root;
+    let current: MemDirectory = this.root;
     let currentPath = '';
 
     for (const part of parts) {
@@ -378,7 +326,7 @@ export class VFSMemFS2 {
         currentPath = currentPath === '/' ? `/${part}` : `${currentPath}/${part}`;
         let child = current.getChild(part);
         if (!child) {
-          child = new MemDirectory2(part, current);
+          child = new MemDirectory(part, current);
           current.addChild(child);
 
           if (this.writeMode === 'sync') {
@@ -390,15 +338,14 @@ export class VFSMemFS2 {
         } else if (!child.isDirectory()) {
           throw new VFSMemFS2Error(`Not a directory: ${part}`, 'ENOTDIR', currentPath);
         }
-        current = child as MemDirectory2;
+        current = child as MemDirectory;
       }
     }
 
     return current;
   }
 
-  // Remove file or directory
-  async remove(pathStr: string, recursive = false): Promise<boolean> {
+  async removeAsync(pathStr: string, recursive = false): Promise<boolean> {
     const node = this.resolvePath(pathStr);
     if (!node) {
       throw new VFSMemFS2Error(`No such file or directory: ${pathStr}`, 'ENOENT', pathStr);
@@ -419,7 +366,6 @@ export class VFSMemFS2 {
     const result = node.parent.removeChild(node.name);
 
     if (result) {
-      // Remove from dirty paths since it's deleted
       this.dirtyPaths.delete(pathStr);
 
       if (this.writeMode === 'sync') {
@@ -431,7 +377,6 @@ export class VFSMemFS2 {
             await this.vfs.unlink(vfsPath);
           }
         } catch (error: any) {
-          // If file doesn't exist on VFS, that's okay
           if (error.code !== 'ENOENT') {
             throw error;
           }
@@ -444,19 +389,8 @@ export class VFSMemFS2 {
     return result;
   }
 
-  // List directory contents
-  listDirectory(pathStr: string): MemNode2[] {
-    const node = this.resolvePath(pathStr);
-    if (!node) {
-      throw new VFSMemFS2Error(`No such directory: ${pathStr}`, 'ENOENT', pathStr);
-    }
-    if (!node.isDirectory()) {
-      throw new VFSMemFS2Error(`Not a directory: ${pathStr}`, 'ENOTDIR', pathStr);
-    }
-    return node.listChildren();
-  }
+  // ==================== VFS SYNCHRONIZATION ====================
 
-  // VFS synchronization
   private async syncFileToVFS(pathStr: string): Promise<void> {
     const node = this.resolvePath(pathStr);
     if (!node?.isFile()) return;
@@ -470,14 +404,13 @@ export class VFSMemFS2 {
       try {
         await this.vfs.mkdir(parentDir, { recursive: true });
       } catch (error: any) {
-        // Ignore EEXIST errors - directory may have been created by concurrent operation
         if (error.code !== 'EEXIST') {
           throw error;
         }
       }
     }
 
-    // Write as text if it's valid UTF-8, otherwise as binary
+    // Write as text if valid UTF-8, otherwise as binary
     if (this.isValidUtf8(content)) {
       await this.vfs.writeFileText(vfsPath, content.toString('utf8'));
     } else {
@@ -497,7 +430,6 @@ export class VFSMemFS2 {
     }
   }
 
-  // Flush all dirty files to VFS
   async flush(): Promise<void> {
     if (this.syncInProgress) {
       throw new VFSMemFS2Error('Sync already in progress', 'EBUSY');
@@ -513,7 +445,6 @@ export class VFSMemFS2 {
         try {
           await this.vfs.rm(vfsPath, { recursive: true });
         } catch (error: any) {
-          // Ignore ENOENT errors for deletions
           if (error.code !== 'ENOENT') {
             throw error;
           }
@@ -523,8 +454,6 @@ export class VFSMemFS2 {
 
       // Then sync dirty files and directories
       const paths = Array.from(this.dirtyPaths);
-
-      // Sort paths so parent directories are created first
       paths.sort((a, b) => a.split('/').length - b.split('/').length);
 
       for (const pathStr of paths) {
@@ -539,7 +468,6 @@ export class VFSMemFS2 {
   private async syncPathToVFS(pathStr: string): Promise<void> {
     const node = this.resolvePath(pathStr);
     if (!node) {
-      // Node was deleted, remove from dirty
       this.dirtyPaths.delete(pathStr);
       return;
     }
@@ -553,7 +481,6 @@ export class VFSMemFS2 {
     }
   }
 
-  // Pre-populate from VFS (awaitable)
   async prePopulate(): Promise<void> {
     await this.populateDirectory('/');
   }
@@ -565,11 +492,9 @@ export class VFSMemFS2 {
       const entries = await this.vfs.readdir(vfsPath, { withFileTypes: true });
 
       for (const entry of entries) {
-        // Handle both string[] and VFSDirectoryEntry2[] return types
         const entryName = typeof entry === 'string' ? entry : entry.name;
         const memPath = dirPath === '/' ? `/${entryName}` : `${dirPath}/${entryName}`;
 
-        // For string entries, we need to stat to determine type
         let isDir = false;
         let isFile = false;
 
@@ -580,7 +505,7 @@ export class VFSMemFS2 {
             isDir = stat.isDirectory();
             isFile = stat.isFile();
           } catch {
-            continue; // Skip if we can't stat
+            continue;
           }
         } else {
           isDir = entry.isDirectory();
@@ -588,46 +513,41 @@ export class VFSMemFS2 {
         }
 
         if (isDir) {
-          // Create directory in memory if it doesn't exist
           if (!this.resolvePath(memPath)) {
             const parsed = this.parsePath(memPath);
             if (parsed && parsed.name) {
-              const newDir = new MemDirectory2(parsed.name, parsed.dir);
+              const newDir = new MemDirectory(parsed.name, parsed.dir);
               parsed.dir.addChild(newDir);
             }
           }
-          // Recursively populate subdirectory
           await this.populateDirectory(memPath);
         } else if (isFile) {
           try {
-            // Read file content from VFS
             const vfsFilePath = vfsPath === '/' ? `/${entryName}` : `${vfsPath}/${entryName}`;
             const content = await this.vfs.readFile(vfsFilePath);
 
-            // Create file in memory
             const parsed = this.parsePath(memPath);
             if (parsed && parsed.name) {
               const buffer = content instanceof Uint8Array
                 ? Buffer.from(content)
                 : Buffer.from(content, 'utf8');
-              const file = new MemFile2(parsed.name, buffer, parsed.dir);
+              const file = new MemFile(parsed.name, buffer, parsed.dir);
               parsed.dir.addChild(file);
             }
           } catch (error: any) {
-            // Log but continue with other files
             console.warn(`Failed to populate file ${memPath}:`, error.message);
           }
         }
       }
     } catch (error: any) {
-      // Directory might not exist, which is fine for initial setup
       if (error.code !== 'ENOENT') {
         throw error;
       }
     }
   }
 
-  // Path conversion utilities
+  // ==================== UTILITIES ====================
+
   private toVFSPath(memPath: string): string {
     if (memPath === '/') {
       return this.baseDirectory;
@@ -635,13 +555,12 @@ export class VFSMemFS2 {
     return path.join(this.baseDirectory, memPath);
   }
 
-  // Statistics
   getStatistics(): VFSMemFS2Statistics {
     let cachedFiles = 0;
     let totalFiles = 0;
     let totalDirectories = 0;
 
-    const countNodes = (node: MemNode2): void => {
+    const countNodes = (node: MemFile | MemDirectory): void => {
       if (node.isFile()) {
         totalFiles++;
         if (!this.dirtyPaths.has(node.getPath())) {
@@ -649,14 +568,14 @@ export class VFSMemFS2 {
         }
       } else if (node.isDirectory()) {
         totalDirectories++;
-        for (const child of (node as MemDirectory2).listChildren()) {
-          countNodes(child);
+        for (const child of (node as MemDirectory).listChildren()) {
+          countNodes(child as MemFile | MemDirectory);
         }
       }
     };
 
     for (const child of this.root.listChildren()) {
-      countNodes(child);
+      countNodes(child as MemFile | MemDirectory);
     }
 
     return {
@@ -670,9 +589,12 @@ export class VFSMemFS2 {
     };
   }
 
-  // Utility methods
   isDirty(pathStr: string): boolean {
     return this.dirtyPaths.has(pathStr);
+  }
+
+  markDirty(pathStr: string): void {
+    this.dirtyPaths.add(pathStr);
   }
 
   getDirtyPaths(): string[] {
