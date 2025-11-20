@@ -6,6 +6,7 @@ import { getVFSClient } from './vfsClient';
 export interface SessionData {
   id: string;
   createdAt: string;
+  name: string;
   workingDir: string;
   history: Array<{
     command: string;
@@ -18,6 +19,7 @@ export interface SessionRecord {
   id: string;
   shell: VFSMemShell2;
   createdAt: Date;
+  name: string;
   workingDir: string;
   history: Array<{
     command: string;
@@ -101,6 +103,7 @@ class SessionStore {
       id,
       shell,
       createdAt: new Date(),
+      name: '',
       workingDir: '/',
       history: [],
     };
@@ -151,6 +154,7 @@ class SessionStore {
       id: sessionData.id,
       shell,
       createdAt: new Date(sessionData.createdAt),
+      name: sessionData.name || '',
       workingDir: sessionData.workingDir,
       history: sessionData.history,
     };
@@ -166,6 +170,7 @@ class SessionStore {
       const sessionData: SessionData = {
         id: record.id,
         createdAt: record.createdAt.toISOString(),
+        name: record.name,
         workingDir: record.workingDir,
         history: record.history,
       };
@@ -186,6 +191,16 @@ class SessionStore {
       output,
       timestamp: new Date().toISOString(),
     });
+
+    // Persist updated session
+    await this.persistSession(record);
+  }
+
+  async updateSessionName(id: string, name: string): Promise<void> {
+    const record = this.sessions.get(id);
+    if (!record) return;
+
+    record.name = name;
 
     // Persist updated session
     await this.persistSession(record);

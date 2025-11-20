@@ -465,6 +465,27 @@ export class VFSMemFS2 extends MemFS {
     }
   }
 
+  async flushFile(pathStr: string): Promise<void> {
+    // Handle deletion
+    if (this.deletedPaths.has(pathStr)) {
+      const vfsPath = this.toVFSPath(pathStr);
+      try {
+        await this.vfs.rm(vfsPath, { recursive: true });
+      } catch (error: any) {
+        if (error.code !== 'ENOENT') {
+          throw error;
+        }
+      }
+      this.deletedPaths.delete(pathStr);
+      return;
+    }
+
+    // Handle write/sync
+    if (this.dirtyPaths.has(pathStr)) {
+      await this.syncPathToVFS(pathStr);
+    }
+  }
+
   private async syncPathToVFS(pathStr: string): Promise<void> {
     const node = this.resolvePath(pathStr);
     if (!node) {

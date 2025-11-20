@@ -94,6 +94,13 @@ export class VFSMemShell2 extends MemShell {
   }
 
   /**
+   * Flush a single file to VFS (or remove if deleted)
+   */
+  async flushFile(pathStr: string): Promise<void> {
+    return this.vfsMemFS2.flushFile(pathStr);
+  }
+
+  /**
    * Pre-populate memory file system from VFS
    */
   async prePopulate(): Promise<void> {

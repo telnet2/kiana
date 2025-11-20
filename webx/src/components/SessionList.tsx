@@ -10,11 +10,13 @@ export default function SessionList({
   onSelect: (id: string) => void;
   onCreate: (session: { id: string }) => void;
 }) {
-  const [sessions, setSessions] = useState<{ id: string; createdAt: string }[]>([]);
+  const [sessions, setSessions] = useState<{ id: string; name: string; createdAt: string }[]>([]);
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState('');
 
   async function loadSessions() {
     setLoading(true);
@@ -75,6 +77,48 @@ export default function SessionList({
     }
   }
 
+  async function saveSessionName(id: string, name: string) {
+    try {
+      const res = await fetch(`/api/sessions?id=${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+        cache: 'no-store',
+      });
+      if (!res.ok) {
+        throw new Error(`Failed to update session name: ${res.status}`);
+      }
+      await loadSessions();
+    } catch (e) {
+      console.error('Error saving session name:', e);
+    } finally {
+      setEditingId(null);
+      setEditingName('');
+    }
+  }
+
+  function startEditing(id: string, currentName: string) {
+    setEditingId(id);
+    setEditingName(currentName);
+  }
+
+  async function handleNameSubmit(id: string) {
+    await saveSessionName(id, editingName);
+  }
+
+  function handleNameBlur(id: string) {
+    handleNameSubmit(id);
+  }
+
+  function handleNameKeyDown(e: React.KeyboardEvent<HTMLInputElement>, id: string) {
+    if (e.key === 'Enter') {
+      handleNameSubmit(id);
+    } else if (e.key === 'Escape') {
+      setEditingId(null);
+      setEditingName('');
+    }
+  }
+
   return (
     <div className="h-full flex flex-col">
       <div className="p-2 border-b border-bg-subtle">
@@ -114,21 +158,54 @@ export default function SessionList({
                 }`}
               >
                 <div className="flex-1 min-w-0">
-                  <div className="text-xs text-text-muted">
-                    {new Date(s.createdAt).toLocaleString()}
-                  </div>
-                  <div className="text-sm font-mono break-all">{s.id}</div>
+                  {editingId === s.id ? (
+                    <input
+                      autoFocus
+                      type="text"
+                      value={editingName}
+                      onChange={(e) => setEditingName(e.target.value)}
+                      onBlur={() => handleNameBlur(s.id)}
+                      onKeyDown={(e) => handleNameKeyDown(e, s.id)}
+                      onClick={(e) => e.stopPropagation()}
+                      className="w-full px-2 py-1 rounded text-sm bg-bg-muted border border-bg-subtle focus:outline-none focus:border-text-muted"
+                      placeholder="Enter session name"
+                    />
+                  ) : (
+                    <>
+                      <div className="text-sm font-semibold break-all">
+                        {s.name || '(No name)'}
+                      </div>
+                      <div className="text-xs text-text-muted">
+                        {new Date(s.createdAt).toLocaleString()}
+                      </div>
+                      <div className="text-xs text-text-muted font-mono">{s.id}</div>
+                    </>
+                  )}
                 </div>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setDeleteConfirm(s.id);
-                  }}
-                  className="ml-2 p-1 text-text-muted hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
-                  title="Delete session"
-                >
-                  🗑️
-                </button>
+                <div className="ml-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                  {editingId !== s.id && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        startEditing(s.id, s.name);
+                      }}
+                      className="p-1 text-text-muted hover:text-text-default transition-colors"
+                      title="Edit session name"
+                    >
+                      ✏️
+                    </button>
+                  )}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDeleteConfirm(s.id);
+                    }}
+                    className="p-1 text-text-muted hover:text-red-400 transition-colors"
+                    title="Delete session"
+                  >
+                    🗑️
+                  </button>
+                </div>
               </div>
             )}
           </div>
