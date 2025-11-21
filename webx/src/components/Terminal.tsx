@@ -5,6 +5,7 @@ import { isTextUIPart, isToolOrDynamicToolUIPart, getToolOrDynamicToolName, type
 import { Streamdown } from 'streamdown';
 import ToolResultView from './ToolResultView';
 import { WeatherDisplay, WeatherData } from './WeatherDisplay';
+import { FormBuilder, FormConfig } from './FormBuilder';
 
 interface ShellMessage {
   id: string;
@@ -273,6 +274,39 @@ export default function Terminal({
                         }
                       }
                       // Skip rendering tool info for displayWeather - just show the UI
+                      if (toolPart.state === 'input-streaming') {
+                        return null;
+                      }
+                    }
+
+                    // Handle displayForm tool - render form UI when tool is available/completed
+                    if (toolName === 'displayForm') {
+                      const toolPart = part;
+                      if (toolPart.state === 'output-available') {
+                        const formInput = toolPart.input as any;
+                        if (formInput?.html) {
+                          const formConfig: FormConfig = {
+                            formId: formInput.formId || `form-${idx}`,
+                            html: formInput.html,
+                            title: formInput.title,
+                          };
+                          return (
+                            <div key={idx}>
+                              <FormBuilder
+                                config={formConfig}
+                                onSubmit={(data) => {
+                                  // Send form submission back to chat
+                                  const jsonStr = JSON.stringify(data, null, 2);
+                                  sendMessage({
+                                    text: `Form submitted with data:\n\`\`\`json\n${jsonStr}\n\`\`\``,
+                                  });
+                                }}
+                              />
+                            </div>
+                          );
+                        }
+                      }
+                      // Skip rendering tool info for displayForm - just show the UI
                       if (toolPart.state === 'input-streaming') {
                         return null;
                       }

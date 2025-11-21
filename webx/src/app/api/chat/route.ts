@@ -4,6 +4,7 @@ import {
   createKianaAgent,
   DEFAULT_SYSTEM_PROMPT,
   createWeatherTools,
+  createFormBuilderTools,
 } from "@byted/kiana";
 import { createAgentUIStreamResponse, type UIMessage } from "ai";
 
@@ -67,8 +68,15 @@ export async function POST(req: NextRequest) {
   } catch {}
   if (!system) system = DEFAULT_SYSTEM_PROMPT;
 
-  // Create weather tools with OpenWeatherMap API key
+  // Create weather and form builder tools
   const weatherTools = createWeatherTools(process.env.OPENWEATHERMAP_API_KEY);
+  const formBuilderTools = createFormBuilderTools();
+
+  // Merge all tools
+  const allTools = {
+    ...weatherTools,
+    ...formBuilderTools,
+  };
 
   const agent = await createKianaAgent(rec.shell, {
     // Instruction not required for Agent UI streaming mode.
@@ -77,8 +85,8 @@ export async function POST(req: NextRequest) {
     maxRounds: maxRounds ?? 20,
     stream: true,
     verbose: false,
-    // Inject weather tools into the agent
-    additionalTools: weatherTools,
+    // Inject weather and form builder tools into the agent
+    additionalTools: allTools,
   });
 
   return createAgentUIStreamResponse({
