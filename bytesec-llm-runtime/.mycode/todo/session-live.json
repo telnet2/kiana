@@ -1,0 +1,14 @@
+[
+  {
+    "id": "1",
+    "content": "Create Go notes file",
+    "status": "in_progress",
+    "priority": "high"
+  },
+  {
+    "id": "2",
+    "content": "Summarize findings",
+    "status": "pending",
+    "priority": "medium"
+  }
+]
