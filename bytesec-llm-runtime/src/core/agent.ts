@@ -5,6 +5,7 @@ import type { ToolRegistry } from "./tools";
 import { createStreamEmitter } from "./streaming";
 import { createOpenAI } from "@ai-sdk/openai";
 import { streamText } from "ai";
+import { copilotGpt5SystemPrompt } from "../prompts/copilot-gpt-5";
 
 export type AgentModelConfig = {
   readonly provider: string;
@@ -28,6 +29,8 @@ export type Agent = {
 };
 
 export const createAgent = (config: AgentConfig): Agent => {
+  const buildPrompt = (input: string) => `${copilotGpt5SystemPrompt}\n\n${input}`;
+
   type AiTool = {
     readonly description: string;
     readonly inputSchema: unknown;
@@ -115,8 +118,9 @@ export const createAgent = (config: AgentConfig): Agent => {
     const toolsMap = toolsForAi(config.tools, context) as never;
     const response = await streamText({
       model: provider(config.model.config.model),
-      prompt: input,
+      prompt: buildPrompt(input),
       tools: toolsMap,
+      stopWhen: [],
     });
 
     for await (const part of response.fullStream) {
@@ -129,7 +133,7 @@ export const createAgent = (config: AgentConfig): Agent => {
 
   const respond = async (input: string) => {
     const connection = await config.models.connect(config.model.provider, config.model.config);
-    const text = await connection.generate(input);
+    const text = await connection.generate(buildPrompt(input));
     return { text };
   };
 

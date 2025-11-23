@@ -35,19 +35,23 @@ const readFileTool: Tool = {
   },
 };
 
-const bashParamsSchema = z.union([
-  z.object({
-    command: z.string(),
-    timeout: z.number().optional(),
-    description: z.string().optional(),
-  }),
-  z.object({
-    cmd: z.string(),
+const bashParamsSchema = z
+  .object({
+    command: z.string().optional(),
+    cmd: z.string().optional(),
     args: z.array(z.string()).optional(),
     timeout: z.number().optional(),
     description: z.string().optional(),
-  }),
-]);
+  })
+  .superRefine((value, ctx) => {
+    if (!value.command && !value.cmd) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Provide either 'command' or 'cmd'.",
+        path: ["command"],
+      });
+    }
+  });
 
 const bashTool: Tool = {
   name: "bash",
@@ -55,10 +59,15 @@ const bashTool: Tool = {
   parameters: bashParamsSchema,
   execute: async (rawArgs, context) => {
     const args = bashParamsSchema.parse(rawArgs);
-    const command =
-      "command" in args
-        ? args.command
-        : [args.cmd, ...(args.args ?? [])].map((part) => (part.includes(" ") ? JSON.stringify(part) : part)).join(" ");
+    const command = (() => {
+      if (args.command) return args.command;
+      if (args.cmd) {
+        return [args.cmd, ...(args.args ?? [])]
+          .map((part) => (part.includes(" ") ? JSON.stringify(part) : part))
+          .join(" ");
+      }
+      throw new Error("Provide either 'command' or 'cmd'.");
+    })();
     const proc = Bun.spawn(["sh", "-c", command], {
       ...(context?.workingDir ? { cwd: context.workingDir } : {}),
       ...(context?.env ? { env: context.env } : {}),

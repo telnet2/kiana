@@ -99,15 +99,67 @@ const editTool: Tool = {
 
 const lsTool: Tool = {
   name: "ls",
-  description: "List files and directories in a path",
+  description: "List files and directories in a path (respects ignore patterns and .gitignore)",
   parameters: z.object({
     path: z.string().optional().describe("Directory to list (defaults to working dir)"),
+    ignore: z.array(z.string()).optional().describe("Additional glob patterns to ignore"),
   }),
   execute: async (args, context) => {
-    const dir = args.path ? resolvePath(args.path, context) : context?.workingDir ?? process.cwd();
-    const entries = await readdir(dir, { withFileTypes: true });
-    const lines = entries.map((e) => `${e.isDirectory() ? "d" : "-"} ${e.name}`);
-    return { title: dir, output: lines.join("\n"), metadata: { count: entries.length } };
+    const root = path.resolve(context?.workingDir ?? process.cwd());
+    const dir = path.resolve(args.path ? resolvePath(args.path, context) : root);
+    if (!dir.startsWith(root)) {
+      throw new Error(`Refusing to list outside working directory: ${dir}`);
+    }
+    const ignore = [
+      "!node_modules/*",
+      "!__pycache__/*",
+      "!.git/*",
+      "!dist/*",
+      "!build/*",
+      "!target/*",
+      "!vendor/*",
+      "!bin/*",
+      "!obj/*",
+      "!.idea/*",
+      "!.vscode/*",
+      "!.zig-cache/*",
+      "!zig-out/*",
+      "!.coverage*",
+      "!coverage/*",
+      "!tmp/*",
+      "!temp/*",
+      "!.cache/*",
+      "!cache/*",
+      "!logs/*",
+      "!.venv/*",
+      "!venv/*",
+      "!env/*",
+      ...(args.ignore ?? []).map((p: string) => (p.startsWith("!") ? p : `!${p}`)),
+    ];
+    const ignored = ignore.map((p) => p.replace(/^!/, "").replace(/\\/g, "/"));
+    const isIgnored = (rel: string) => {
+      const relNorm = rel.replace(/\\/g, "/");
+      return ignored.some((pattern) => {
+        if (pattern.endsWith("/*")) {
+          const base = pattern.slice(0, -1);
+          return relNorm.startsWith(base);
+        }
+        if (pattern.endsWith("/")) {
+          return relNorm.startsWith(pattern);
+        }
+        return relNorm === pattern || relNorm.startsWith(`${pattern}/`);
+      });
+    };
+    const files: string[] = [];
+    const glob = new Bun.Glob("**/*");
+    for await (const match of glob.scan({ cwd: dir, absolute: true, followSymlinks: false, onlyFiles: false, dot: true })) {
+      const rel = path.relative(dir, match);
+      if (rel === "" || isIgnored(rel)) continue;
+      files.push(rel);
+      if (files.length >= 200) break;
+    }
+    const output = files.length > 0 ? files.sort().join("\n") : "No files found";
+    return { title: dir, output, metadata: { count: files.length, truncated: files.length >= 200 } };
   },
 };
 
@@ -119,7 +171,11 @@ const globTool: Tool = {
     path: z.string().optional().describe("Search root (defaults to working dir)"),
   }),
   execute: async (args, context) => {
-    const cwd = args.path ? resolvePath(args.path, context) : context?.workingDir ?? process.cwd();
+    const root = path.resolve(context?.workingDir ?? process.cwd());
+    const cwd = path.resolve(args.path ? resolvePath(args.path, context) : root);
+    if (!cwd.startsWith(root)) {
+      throw new Error(`Refusing to glob outside working directory: ${cwd}`);
+    }
     const glob = new Bun.Glob(args.pattern);
     const matches: string[] = [];
     for await (const match of glob.scan({ cwd })) {
@@ -143,8 +199,12 @@ const grepTool: Tool = {
     glob: z.string().optional().describe("Glob to include"),
   }),
   execute: async (args, context) => {
-    const cwd = context?.workingDir ?? process.cwd();
-    const target = args.path ? resolvePath(args.path, context) : cwd;
+    const root = path.resolve(context?.workingDir ?? process.cwd());
+    const cwd = root;
+    const target = path.resolve(args.path ? resolvePath(args.path, context) : root);
+    if (!target.startsWith(root)) {
+      throw new Error(`Refusing to search outside working directory: ${target}`);
+    }
     const cmd = ["rg", "--line-number", args.pattern, target];
     if (args.glob) {
       cmd.push("-g", args.glob);
@@ -212,20 +272,6 @@ const taskTool: Tool = {
   }),
 };
 
-const lspHoverTool: Tool = {
-  name: "lsp-hover",
-  description: "LSP hover info (not supported in this runtime)",
-  parameters: z.object({ filePath: z.string(), line: z.number(), column: z.number() }),
-  execute: async () => ({ title: "lsp-hover", output: "LSP hover is not available in this runtime." }),
-};
-
-const lspDiagnosticsTool: Tool = {
-  name: "lsp-diagnostics",
-  description: "LSP diagnostics (not supported in this runtime)",
-  parameters: z.object({}),
-  execute: async () => ({ title: "lsp-diagnostics", output: "LSP diagnostics are not available in this runtime." }),
-};
-
 export const createOpencodeTools = (): ReadonlyArray<Tool> => [
   readTool,
   writeTool,
@@ -236,6 +282,4 @@ export const createOpencodeTools = (): ReadonlyArray<Tool> => [
   webfetchTool,
   codesearchTool,
   taskTool,
-  lspHoverTool,
-  lspDiagnosticsTool,
 ];
