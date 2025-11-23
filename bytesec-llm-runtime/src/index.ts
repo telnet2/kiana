@@ -16,3 +16,4 @@ export { createWebSearchTool } from "./core/tools/websearch";
 export { createExaWebSearchTool } from "./core/tools/websearch-exa";
 export { createBatchTool } from "./core/tools/batch";
 export { createDefaultTools, createDefaultToolRegistry } from "./core/tools/default";
+export { runRuntimeTui } from "./tui";

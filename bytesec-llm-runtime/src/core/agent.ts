@@ -1,4 +1,5 @@
 import type { ConversationStore, ModelConfig, ToolContext, Tool } from "../types";
+import type { StreamEvent } from "../types/events";
 import type { ModelRegistry } from "./model";
 import type { ToolRegistry } from "./tools";
 import { createStreamEmitter } from "./streaming";
@@ -27,18 +28,71 @@ export type Agent = {
 };
 
 export const createAgent = (config: AgentConfig): Agent => {
+  type AiTool = {
+    readonly description: string;
+    readonly inputSchema: unknown;
+    readonly execute: (args: unknown) => Promise<unknown>;
+    readonly type?: "function";
+  };
+
   const toolsForAi = (tools?: ToolRegistry, context?: ToolContext) => {
     if (!tools) {
       return undefined;
     }
-    const map: Record<string, Tool> = {};
+    const map: Record<string, AiTool> = {};
     for (const tool of tools.list()) {
       map[tool.name] = {
-        ...tool,
+        description: tool.description,
+        inputSchema: tool.parameters,
         execute: async (args: unknown) => tools.execute(tool.name, args, context ?? {}),
+        type: "function",
       };
     }
     return map;
+  };
+
+  const mapAiStreamPart = (part: unknown): StreamEvent | undefined => {
+    const typed = part as { type?: string; text?: string };
+    if (typed.type === "text-delta") {
+      return { type: "text", data: typed.text ?? "" };
+    }
+    if (typed.type === "tool-call") {
+      const call = part as { toolCallId?: string; toolName?: string; input?: unknown };
+      return {
+        type: "tool_call",
+        data: {
+          id: call.toolCallId ?? call.toolName ?? "tool-call",
+          tool: call.toolName ?? "unknown",
+          args: call.input,
+        },
+      };
+    }
+    if (typed.type === "tool-result") {
+      const result = part as { toolCallId?: string; toolName?: string; output?: unknown };
+      const output = result.output;
+      const metadata =
+        typeof output === "object" && output !== null && "metadata" in output
+          ? (output as { metadata?: Readonly<Record<string, unknown>> }).metadata
+          : undefined;
+      const event: StreamEvent = {
+        type: "tool_result",
+        data: {
+          id: result.toolCallId ?? result.toolName ?? "tool-result",
+          tool: result.toolName ?? "unknown",
+          output,
+        },
+      };
+      return metadata ? { ...event, metadata } : event;
+    }
+    if (typed.type === "tool-error" || typed.type === "error") {
+      const error = part as { error?: unknown };
+      return { type: "error", data: error.error ?? part };
+    }
+    if (typed.type === "finish") {
+      const finish = part as { finishReason?: unknown; totalUsage?: unknown };
+      return { type: "done", data: null, metadata: { finishReason: finish.finishReason, usage: finish.totalUsage } };
+    }
+    return undefined;
   };
 
   const streamWithAi = async function* (input: string, context?: ToolContext) {
@@ -65,10 +119,12 @@ export const createAgent = (config: AgentConfig): Agent => {
       tools: toolsMap,
     });
 
-    for await (const delta of response.textStream) {
-      yield { type: "text", data: delta } as const;
+    for await (const part of response.fullStream) {
+      const mapped = mapAiStreamPart(part);
+      if (mapped) {
+        yield mapped;
+      }
     }
-    yield { type: "done", data: null } as const;
   };
 
   const respond = async (input: string) => {

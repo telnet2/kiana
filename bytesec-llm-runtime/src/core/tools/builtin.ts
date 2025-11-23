@@ -35,20 +35,39 @@ const readFileTool: Tool = {
   },
 };
 
+const bashParamsSchema = z.union([
+  z.object({
+    command: z.string(),
+    timeout: z.number().optional(),
+    description: z.string().optional(),
+  }),
+  z.object({
+    cmd: z.string(),
+    args: z.array(z.string()).optional(),
+    timeout: z.number().optional(),
+    description: z.string().optional(),
+  }),
+]);
+
 const bashTool: Tool = {
   name: "bash",
-  description: "Execute a command using Bun.spawn",
-  parameters: z.object({ cmd: z.string(), args: z.array(z.string()).optional() }),
-  execute: async (args, context) => {
-    const proc = Bun.spawn([
-      args.cmd,
-      ...(args.args ?? []),
-    ], {
+  description: "Execute a shell command using Bun.spawn",
+  parameters: bashParamsSchema,
+  execute: async (rawArgs, context) => {
+    const args = bashParamsSchema.parse(rawArgs);
+    const command =
+      "command" in args
+        ? args.command
+        : [args.cmd, ...(args.args ?? [])].map((part) => (part.includes(" ") ? JSON.stringify(part) : part)).join(" ");
+    const proc = Bun.spawn(["sh", "-c", command], {
       ...(context?.workingDir ? { cwd: context.workingDir } : {}),
       ...(context?.env ? { env: context.env } : {}),
     });
-    const output = await new Response(proc.stdout).text();
-    const errorOutput = await new Response(proc.stderr).text();
+    const timeout = args.timeout ?? 60_000;
+    const timer = setTimeout(() => proc.kill(), timeout);
+    const output = await new Response(proc.stdout).text().catch(() => "");
+    const errorOutput = await new Response(proc.stderr).text().catch(() => "");
+    clearTimeout(timer);
     const combined = errorOutput ? `${output}\n${errorOutput}` : output;
     return { output: combined.trim() };
   },

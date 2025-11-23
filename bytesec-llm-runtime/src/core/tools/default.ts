@@ -8,6 +8,7 @@ import { createWebSearchTool } from "./websearch";
 import { createExaWebSearchTool } from "./websearch-exa";
 import { createBatchTool } from "./batch";
 import { createToolRegistry } from "../tools";
+import { createOpencodeTools } from "./opencode";
 
 type DefaultToolOptions = {
   readonly includeExa?: boolean;
@@ -26,6 +27,10 @@ export const createDefaultTools = (options?: DefaultToolOptions): ReadonlyArray<
     patchTool,
     createWebSearchTool(),
   ];
+  for (const tool of createOpencodeTools()) {
+    if (list.some((t) => t.name === tool.name)) continue;
+    list.push(tool);
+  }
   if (options?.includeExa) {
     list.push(createExaWebSearchTool());
   }

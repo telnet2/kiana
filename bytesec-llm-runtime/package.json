@@ -1,12 +1,13 @@
 {
-  "name": "mycode",
+  "name": "@byted/sec-llm-runtime",
   "version": "0.1.0",
   "type": "module",
   "private": true,
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "bun test"
+    "test": "bun test",
+    "tui": "bun run src/tui.ts"
   },
   "exports": {
     ".": {
