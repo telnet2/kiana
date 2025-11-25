@@ -18,3 +18,6 @@ export { VFSMemShell, VFSMemShellOptions, VFSStatus } from './VFSMemShell';
 export { VFSMemShell2, VFSMemShell2Options } from './VFSMemShell2';
 export { VFSMemSession, VFSMemSessionOptions, SessionData } from './VFSMemSession';
 export * from './vfs-types';
+
+// Pub-Sub for Session Conversations
+export * from './pubsub';
