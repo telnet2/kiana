@@ -1,0 +1,187 @@
+#!/usr/bin/env node
+
+import { MemREPL } from './MemREPL';
+import { ARKConfig } from './KianaAgentV6';
+import * as fs from 'fs';
+import * as path from 'path';
+import { loadEnv, getARKConfigFromEnv } from './envLoader';
+
+// Load environment variables from .env files
+loadEnv();
+
+/**
+ * CLI Options Interface
+ */
+interface CLIOptions {
+  command: string | null;
+  script: string | null;
+  interactive: boolean;
+  arkConfig?: ARKConfig;
+  verbose: boolean;
+}
+
+/**
+ * Parse command line arguments
+ */
+function parseCliArgs(): CLIOptions {
+  const args = process.argv.slice(2);
+  const options: CLIOptions = {
+    command: null,
+    script: null,
+    interactive: true,
+    verbose: false,
+  };
+
+  // Parse ARK configuration from environment (including .env files) or command line
+  const arkConfig: ARKConfig = getARKConfigFromEnv();
+
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+
+    if (arg === '-c') {
+      options.command = args[++i];
+      options.interactive = false;
+    } else if (arg === '--ark-model') {
+      arkConfig.modelId = args[++i];
+    } else if (arg === '--ark-api-key') {
+      arkConfig.apiKey = args[++i];
+    } else if (arg === '--ark-base-url') {
+      arkConfig.baseURL = args[++i];
+    } else if (arg === '--verbose' || arg === '-v') {
+      options.verbose = true;
+    } else if (arg === '-h' || arg === '--help') {
+      showHelp();
+      process.exit(0);
+    } else if (arg === '--version') {
+      showVersion();
+      process.exit(0);
+    } else if (!arg.startsWith('-')) {
+      options.script = arg;
+      options.interactive = false;
+    }
+  }
+
+  // Only set ARK config if API key is provided
+  if (arkConfig.apiKey) {
+    options.arkConfig = arkConfig;
+  }
+
+  return options;
+}
+
+/**
+ * Show version information
+ */
+function showVersion(): void {
+  try {
+    const packagePath = path.join(__dirname, '..', 'package.json');
+    const pkg = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
+    console.log(`memsh version ${pkg.version}`);
+  } catch (err) {
+    console.log('memsh version unknown');
+  }
+}
+
+/**
+ * Show help information
+ */
+function showHelp(): void {
+  console.log(`
+memsh - In-Memory File System Shell with ARK AI Integration
+
+Usage:
+  memsh                              Start interactive shell
+  memsh -c <command>                 Execute a single command
+  memsh <script.sh>                  Execute commands from a script file
+  memsh chat [options] <prompt>      Stream chat via AI SDK UI messages
+
+Options:
+  -h, --help                         Show this help message
+  --version                          Show version information
+  -v, --verbose                      Enable verbose output
+  
+ARK Configuration (for AI features):
+  --ark-model <model>                ARK model ID (default: doubao-pro-32k)
+  --ark-api-key <key>                ARK API key
+  --ark-base-url <url>               ARK base URL (default: https://ark-ap-southeast.byteintl.net/api/v3)
+
+Environment Variables:
+  ARK_MODEL_ID                       Default ARK model ID
+  ARK_API_KEY                        ARK API key
+  ARK_BASE_URL                       ARK base URL
+
+Interactive Mode:
+  Once in the shell, type "help" to see available commands.
+  Type "kiana" to enter AI conversational mode.
+
+Examples:
+  # Start interactive shell
+  $ memsh
+
+  # Execute a single command
+  $ memsh -c "mkdir test && cd test && touch file.txt"
+
+  # Run with custom ARK model
+  $ memsh --ark-model doubao-pro-32k --ark-api-key your-key
+
+  # Run a script with ARK configuration
+  $ memsh script.sh --ark-api-key your-key
+
+  # Chat locally (in-process agent)
+   memsh chat "explain the file layout"
+
+  # Chat remotely against the web app
+   memsh chat --server http://localhost:3000 --session <id> "hi"
+
+For more information, visit: https://github.com/telnet2/utileejs
+`);
+}
+
+/**
+ * Main entry point
+ */
+function main(): void {
+  // subcommand: chat (UI message streaming)
+  const argv = process.argv.slice(2);
+  if (argv[0] === 'chat') {
+    import('./cli/chat').then(async (mod) => {
+      try {
+        await mod.runMemshChat(argv.slice(1));
+        process.exit(0);
+      } catch (err: any) {
+        console.error(err?.stack || String(err));
+        process.exit(1);
+      }
+    });
+    return;
+  }
+
+  const options = parseCliArgs();
+  const repl = new MemREPL(null, null, options.arkConfig);
+
+  if (options.command) {
+    // Execute single command
+    const exitCode = repl.execCommand(options.command);
+    process.exit(exitCode);
+  } else if (options.script) {
+    // Execute script file
+    try {
+      const scriptPath = path.resolve(options.script);
+      const scriptContent = fs.readFileSync(scriptPath, 'utf8');
+      const commands = scriptContent.split('\n');
+      const exitCode = repl.execScript(commands);
+      process.exit(exitCode);
+    } catch (err: any) {
+      console.error(`Error reading script: ${err.message}`);
+      process.exit(1);
+    }
+  } else {
+    // Interactive mode
+    repl.start();
+  }
+}
+
+// Run the CLI
+if (require.main === module) {
+  main();
+}

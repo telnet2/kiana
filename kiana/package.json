@@ -1,0 +1,62 @@
+{
+    "name": "@byted/kiana",
+    "version": "0.0.1",
+    "description": "Kiana MemFS-based LLM agent",
+    "main": "index.js",
+    "types": "index.d.ts",
+    "bin": {
+        "memsh": "./bin/memsh"
+    },
+    "files": [
+        "index.js",
+        "lib",
+        "src",
+        "bin"
+    ],
+    "repository": "git@code.byted.org/crystal/kiana.git",
+    "author": "Dereck Luo <dereck.luo@bytedance.com>",
+    "dependencies": {
+        "@ai-sdk/openai": "^3.0.0-beta.51",
+        "@ai-sdk/openai-compatible": "^2.0.0-beta.32",
+        "@byted/crystal-vfs": "^2.3.1",
+        "ai": "^6.0.0-beta.94",
+        "argparse": "^2.0.1",
+        "coffee-script": "^1.12.7",
+        "deasync": "^0.1.30",
+        "diff": "^8.0.2",
+        "dotenv": "^17.2.3",
+        "eventemitter3": "^3.1.0",
+        "micromatch": "^4.0.8",
+        "node-jq": "^6.3.1",
+        "openai": "^6.7.0",
+        "sh-syntax": "^0.5.8",
+        "tar": "^7.5.2",
+        "vm2": "^3.9.20",
+        "zod": "^3.25.76"
+    },
+    "devDependencies": {
+        "@types/argparse": "^2.0.17",
+        "@types/chai": "^5.2.3",
+        "@types/diff": "^7.0.2",
+        "@types/micromatch": "^4.0.10",
+        "@types/mocha": "^10.0.10",
+        "@types/node": "^20.16.6",
+        "@types/tar": "^6.1.13",
+        "babel-cli": "^6.26.0",
+        "babel-preset-env": "^1.7.0",
+        "chai": "^4.1.2",
+        "mocha": "^5.2.0",
+        "mocha-logger": "^1.0.6",
+        "ts-node": "^10.9.2",
+        "typescript": "^5.9.3"
+    },
+    "scripts": {
+        "build": "tsc -p tsconfig.json && npm run build:memsh",
+        "build:memsh": "npm run compile:memsh && npm run copy:memsh",
+        "compile:memsh": "tsc src/memsh.ts src/MemREPL.ts src/KianaInteractive.ts src/KianaAgentV6.ts src/cli/chat.ts --outDir bin --target es2020 --module commonjs --moduleResolution node --skipLibCheck",
+        "copy:memsh": "sed 's|require(\"./MemREPL\")|require(\"./MemREPL.js\")|g' bin/memsh.js | sed 's|require(\"./KianaAgentV6\")|require(\"./KianaAgentV6.js\")|g' > bin/memsh && chmod +x bin/memsh && rm -f bin/memsh.js",
+        "memsh": "npm run build:memsh && ./bin/memsh",
+        "clean": "rm -rf lib bin",
+        "test": "npm run build && npx mocha --require ts-node/register test/**/*.test.{ts,js}"
+    }
+}
