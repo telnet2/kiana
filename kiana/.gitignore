@@ -75,3 +75,8 @@ typings/
 *.tmp
 .DS_Store
 memfs-*/
+
+# Local config overrides
+.npmrc
+bunfig.toml
+bun.lockb
