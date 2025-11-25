@@ -108,6 +108,24 @@ export class SessionEventBus implements ISessionEventBus {
   }
 
   /**
+   * Emit an event with an already-assigned sequence number to subscribers
+   * Does NOT increment the sequence counter (use when you manage seq externally)
+   * @param sessionId - Session to emit to
+   * @param event - Full event with seq already assigned
+   */
+  emit(sessionId: string, event: ConversationEvent): void {
+    const emitter = this.emitters.get(sessionId);
+
+    if (this.debug) {
+      console.log(`[SessionEventBus] Emitting event to session: ${sessionId}, seq: ${event.seq}, type: ${event.type}`);
+    }
+
+    if (emitter) {
+      emitter.emit(EVENT_NAME, event);
+    }
+  }
+
+  /**
    * Get the current sequence number for a session
    * @param sessionId - Session ID
    * @returns Current sequence number or 0 if session not tracked

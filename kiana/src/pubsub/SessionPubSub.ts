@@ -71,7 +71,7 @@ export class SessionPubSub implements ISessionPubSub {
    * Publish an event to both the event bus and persistent storage
    */
   async publishAndPersist(event: Omit<ConversationEvent, 'seq'>): Promise<void> {
-    // Get sequence number from event bus
+    // Get and increment sequence number
     const seq = this.eventBus.getSequence(event.sessionId) + 1;
     this.eventBus.setSequence(event.sessionId, seq);
 
@@ -80,8 +80,8 @@ export class SessionPubSub implements ISessionPubSub {
       seq,
     };
 
-    // Publish to subscribers
-    this.eventBus.publish(event.sessionId, event);
+    // Emit to subscribers (use emit, not publish, to avoid double-incrementing seq)
+    this.eventBus.emit(event.sessionId, fullEvent);
 
     // Persist to storage
     await this.store.append(fullEvent);
